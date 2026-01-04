@@ -28,6 +28,8 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 
 ## 🔧 Nasıl Çalışır?
 
+**EĞER ARKAPLANDA CMD EKRANI OLMADAN ÇALIŞMASINI İSTİYORSANIZ,** "start_hidden.vbs" dosyasını çalıştırın. Böylece görüntü kirliliği olmadan çalışacaktır.
+
 SteelSeries GameSense SDK, localhost'ta bir REST API sunucusu çalıştırır. Bu eklenti:
 
 1. `coreProps.json` dosyasından GameSense sunucu adresini okur
