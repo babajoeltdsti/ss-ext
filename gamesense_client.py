@@ -1,0 +1,178 @@
+"""
+SteelSeries GameSense API temcisi
+"""
+import json
+import os
+import requests
+import time
+from typing import Optional, Dict, Any
+from config import get_core_props_path, GAME_NAME, GAME_DISPLAY_NAME, DEVELOPER, ICONS
+from intro_animation import INTRO_TEXT_FRAMES
+
+
+class GameSenseClient:
+    def __init__(self):
+        self.base_url: Optional[str] = None
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
+        
+    def discover_server(self) -> bool:
+        """SteelSeries Engine'i bulur"""
+        path = get_core_props_path()
+        
+        if not os.path.exists(path):
+            print(f"[X] SteelSeries Engine bulunamadi!")
+            print(f"    Konum: {path}")
+            return False
+        
+        try:
+            with open(path, 'r') as f:
+                props = json.load(f)
+                if props.get("address"):
+                    self.base_url = f"http://{props['address']}"
+                    print(f"[OK] SteelSeries Engine: {self.base_url}")
+                    return True
+        except Exception as e:
+            print(f"[X] Hata: {e}")
+        return False
+    
+    def _post(self, endpoint: str, data: Dict[str, Any]) -> Optional[Dict]:
+        if not self.base_url:
+            return None
+        try:
+            r = self.session.post(f"{self.base_url}/{endpoint}", json=data, timeout=2)
+            r.raise_for_status()
+            return r.json() if r.text else {}
+        except:
+            return None
+    
+    def register_game(self) -> bool:
+        data = {
+            "game": GAME_NAME,
+            "game_display_name": GAME_DISPLAY_NAME,
+            "developer": DEVELOPER,
+            "deinitialize_timer_length_ms": 60000
+        }
+        if self._post("game_metadata", data) is not None:
+            print(f"[OK] Uygulama: {GAME_DISPLAY_NAME}")
+            return True
+        return False
+    
+    def register_event(self, event_name: str) -> bool:
+        """Event'i value_optional ile kaydeder"""
+        data = {
+            "game": GAME_NAME,
+            "event": event_name,
+            "value_optional": True
+        }
+        return self._post("register_game_event", data) is not None
+    
+    def setup_handlers(self) -> bool:
+        """Tüm handler'ları ayarlar"""
+        handlers = [
+            ("INTRO", ICONS["none"], [
+                {"has-text": True, "context-frame-key": "line1", "bold": True},
+                {"has-text": True, "context-frame-key": "line2"}
+            ]),
+            ("CLOCK", ICONS["clock"], [
+                {"has-text": True, "context-frame-key": "time", "bold": True},
+                {"has-text": True, "context-frame-key": "date"}
+            ]),
+            ("SPOTIFY", ICONS["music"], [
+                {"has-text": True, "context-frame-key": "title", "bold": True},
+                {"has-text": True, "context-frame-key": "artist"}
+            ]),
+            ("VOLUME", ICONS["none"], [
+                {"has-text": True, "context-frame-key": "title", "bold": True},
+                {"has-text": True, "context-frame-key": "level"}
+            ]),
+            ("NOTIFICATION", ICONS["none"], [
+                {"has-text": True, "context-frame-key": "app", "bold": True},
+                {"has-text": True, "context-frame-key": "message"}
+            ]),
+        ]
+        
+        for event, icon, lines in handlers:
+            # Önce event'i kaydet (value_optional ile)
+            self.register_event(event)
+            
+            # Sonra handler'ı bağla
+            data = {
+                "game": GAME_NAME,
+                "event": event,
+                "handlers": [{
+                    "device-type": "screened",
+                    "zone": "one",
+                    "mode": "screen",
+                    "datas": [{"icon-id": icon, "lines": lines}]
+                }]
+            }
+            if self._post("bind_game_event", data) is None:
+                return False
+        
+        print("[OK] Handler'lar ayarlandi")
+        return True
+    
+    def send_event(self, event: str, frame: Dict[str, Any]) -> bool:
+        """Event gönder - her seferinde değer değişsin diye counter kullan"""
+        data = {
+            "game": GAME_NAME,
+            "event": event,
+            "data": {
+                "value": int(time.time() * 1000) % 100,  # Her zaman farklı değer
+                "frame": frame
+            }
+        }
+        return self._post("game_event", data) is not None
+    
+    def play_intro(self):
+        """GG-EXT Intro"""
+        print("\n" + "=" * 35)
+        print("         G G - E X T   V 2 . 0")
+        print("=" * 35 + "\n")
+        
+        for frame in INTRO_TEXT_FRAMES:
+            self.send_event("INTRO", {
+                "line1": frame["line1"],
+                "line2": frame["line2"]
+            })
+            time.sleep(frame["duration"] / 1000.0)
+    
+    def play_outro(self):
+        """GG-EXT Kapanış Animasyonu"""
+        from intro_animation import OUTRO_TEXT_FRAMES
+        
+        for frame in OUTRO_TEXT_FRAMES:
+            self.send_event("INTRO", {
+                "line1": frame["line1"],
+                "line2": frame["line2"]
+            })
+            time.sleep(frame["duration"] / 1000.0)
+    
+    def send_clock(self, time_str: str, date_str: str) -> bool:
+        return self.send_event("CLOCK", {"time": time_str, "date": date_str})
+    
+    def send_spotify(self, title: str, artist: str) -> bool:
+        """Spotify şarkı bilgisi"""
+        return self.send_event("SPOTIFY", {"title": title, "artist": artist})
+    
+    def send_volume(self, volume: int, muted: bool = False) -> bool:
+        """Ses seviyesini ekranda göster"""
+        if muted:
+            title = "  SES KAPALI"
+            level = "     MUTED"
+        else:
+            title = "  SES SEVIYESI"
+            # Progress bar oluştur (daha kısa)
+            bar_len = 8
+            filled = int(volume / 100 * bar_len)
+            bar = "█" * filled + "░" * (bar_len - filled)
+            level = f"  {bar} {volume}%"
+        return self.send_event("VOLUME", {"title": title, "level": level})
+    
+    def send_notification(self, app: str, message: str = "Yeni Bildirim") -> bool:
+        """Bildirim göster"""
+        return self.send_event("NOTIFICATION", {"app": f"    {app}", "message": f"  {message}"})
+    
+    def heartbeat(self):
+        self._post("game_heartbeat", {"game": GAME_NAME})
