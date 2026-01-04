@@ -1,70 +1,99 @@
-# SteelSeries OLED Ekran Eklentisi
+# GG-EXT V1.0 - SteelSeries OLED Eklentisi
 
-Bu proje, SteelSeries klavyelerin OLED ekranlarında sistem bilgilerini ve özel mesajları görüntüleyen bir eklentidir.
+SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen bir GameSense eklentisidir.
 
-## Özellikler
+## 👤 Yapımcı
 
-- 🖥️ CPU kullanımı
-- 🧠 RAM kullanımı  
-- ⏰ Saat ve tarih
-- 🎵 Spotify şu an çalan şarkı (opsiyonel)
-- 📊 Sistem bilgileri
-- ✉️ Özel mesaj gönderme
+**OMERBABACO**
 
-## Gereksinimler
+## ✨ Özellikler
 
-1. **SteelSeries GG** uygulaması çalışıyor olmalı
-2. Python 3.8+
-3. Gerekli paketler: `pip install -r requirements.txt`
+- ⏰ **Saat ve Tarih** - Gerçek zamanlı saat gösterimi
+- 🎵 **Spotify Entegrasyonu** - Şu an çalan şarkı bilgisi
+- 🔊 **Ses Kontrolü** - Sistem ses seviyesi göstergesi ve mute durumu
+- ✉️ **Bildirim Desteği** - Windows bildirimleri
 
-## Nasıl Çalışır?
+## 📋 Gereksinimler
+
+- **İşletim Sistemi:** Windows (pycaw ve pywin32 gereksinimleri nedeniyle)
+- **SteelSeries GG** uygulaması çalışıyor olmalı
+- **Python 3.8+**
+- Bağımlılıklar:
+  - `requests>=2.28.0`
+  - `psutil>=5.9.0`
+  - `pywin32>=305`
+  - `WMI>=1.5.1`
+  - `pycaw>=20230407`
+  - `comtypes>=1.2.0`
+
+## 🔧 Nasıl Çalışır?
 
 SteelSeries GameSense SDK, localhost'ta bir REST API sunucusu çalıştırır. Bu eklenti:
 
 1. `coreProps.json` dosyasından GameSense sunucu adresini okur
-2. Uygulamayı GameSense'e kaydeder
-3. OLED ekran için event handler'ları bağlar
-4. Periyodik olarak sistem bilgilerini gönderir
+2. Uygulamayı GameSense'e kaydeder (`GGEXT` olarak)
+3. OLED ekran için event handler'ları oluşturur
+4. 200ms aralıklarla sistem bilgilerini günceller
 
-## Kurulum
+## 🚀 Kurulum
 
+### Otomatik Kurulum (Windows)
+```batch
+install.bat
+```
+
+### Manuel Kurulum
 ```bash
 # Virtual environment oluştur (opsiyonel)
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# veya
-venv\Scripts\activate  # Windows
+venv\Scripts\activate
 
 # Bağımlılıkları yükle
 pip install -r requirements.txt
 ```
 
-## Kullanım
+## 📖 Kullanım
 
+### Başlatma
 ```bash
-# Ana uygulamayı çalıştır
+# Normal başlatma
 python main.py
 
-# Sadece özel mesaj göster
-python main.py --message "Merhaba Dünya!"
+# veya Windows batch dosyası ile
+start.bat
 
-# Sistem monitörünü başlat
-python main.py --monitor
+# Gizli pencerede başlatma (arka planda)
+start_hidden.vbs
 ```
 
-## Dosya Yapısı
+### Durdurma
+```bash
+# Düzgün kapatma
+python stop_graceful.py
+
+# veya
+stop.bat
+```
+
+## 📁 Dosya Yapısı
 
 ```
 ss-ext/
-├── main.py              # Ana uygulama
-├── gamesense_client.py  # GameSense API istemcisi
-├── system_monitor.py    # Sistem bilgisi toplayan modül
+├── main.py              # Ana uygulama (GGExt sınıfı)
+├── gamesense_client.py  # GameSense REST API istemcisi
+├── system_monitor.py    # Monitör modülleri (Spotify, Volume, Notification)
 ├── config.py            # Yapılandırma ayarları
+├── intro_animation.py   # Başlangıç animasyonu
+├── stop_graceful.py     # Düzgün kapatma scripti
 ├── requirements.txt     # Python bağımlılıkları
-└── README.md           # Bu dosya
+├── install.bat          # Windows kurulum scripti
+├── start.bat            # Windows başlatma scripti
+├── start_hidden.vbs     # Gizli pencerede başlatma
+├── stop.bat             # Windows durdurma scripti
+└── README.md            # Bu dosya
 ```
 
-## Desteklenen Cihazlar
+## 🎮 Desteklenen Cihazlar
 
 - SteelSeries Apex Pro
 - SteelSeries Apex Pro TKL
@@ -72,9 +101,27 @@ ss-ext/
 - SteelSeries Apex 5
 - Ve OLED ekranlı diğer SteelSeries cihazları
 
-## Notlar
+## ⚙️ Yapılandırma
 
-- SteelSeries GG uygulamasının çalışıyor olması gerekir
-- Linux'ta `coreProps.json` konumu: `~/.config/SteelSeries Engine 3/`
-- Windows'ta: `%PROGRAMDATA%/SteelSeries/SteelSeries Engine 3/`
-- macOS'ta: `/Library/Application Support/SteelSeries Engine 3/`
+`config.py` dosyasından aşağıdaki ayarları değiştirebilirsiniz:
+
+| Ayar | Varsayılan | Açıklama |
+|------|------------|----------|
+| `GAME_NAME` | `GGEXT` | GameSense'e kaydedilen uygulama adı |
+| `UPDATE_INTERVAL` | `0.2` | Güncelleme aralığı (saniye) |
+
+## 📝 Notlar
+
+- SteelSeries GG uygulamasının çalışıyor olması **zorunludur**
+- `coreProps.json` konumları:
+  - **Windows:** `%PROGRAMDATA%\SteelSeries\SteelSeries Engine 3\`
+  - **macOS:** `/Library/Application Support/SteelSeries Engine 3/`
+  - **Linux:** `~/.config/SteelSeries Engine 3/`
+
+## 📄 Lisans
+
+Bu proje açık kaynaklıdır.
+
+---
+
+**GG-EXT V1.0** | Yapımcı: **OMERBABACO**
