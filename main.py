@@ -10,6 +10,15 @@ import argparse
 
 from gamesense_client import GameSenseClient
 
+# ANSI renk kodlari (konsol ciktisi icin)
+C = '\u001b[96m'  # cyan
+Y = '\u001b[93m'  # yellow
+G = '\u001b[92m'  # green
+R = '\u001b[91m'  # red
+W = '\u001b[97m'  # white
+D = '\u001b[90m'  # dim
+RESET = '\u001b[0m'
+
 # Debug: set GGEXT_DEBUG=1 in environment to enable per-loop progress logs
 DEBUG_PROGRESS = os.getenv("GGEXT_DEBUG", "0") == "1"
 
@@ -51,9 +60,9 @@ class GGExt:
         self.running = False
     
     def start(self) -> bool:
-        print("=" * 40)
-        print(f"    GG-EXT {VERSION_DISPLAY} - SteelSeries OLED")
-        print("=" * 40 + "\n")
+        print(C + "=" * 40 + RESET)
+        print(f"{Y}    GG-EXT {VERSION_DISPLAY} - SteelSeries OLED{RESET}")
+        print(C + "=" * 40 + "\n")
         
         if not self.client.discover_server():
             return False
@@ -67,7 +76,7 @@ class GGExt:
         # Intro
         self.client.play_intro()
         
-        print("[*] Çalışıyor... (Ctrl+C ile kapat)\n")
+        print(f"{Y}[*]{RESET} {W}Çalışıyor... (Ctrl+C ile kapat)\n{RESET}")
         
         self.running = True
         hb_counter = 0
@@ -85,7 +94,7 @@ class GGExt:
                 # --- Öncelik 1: Bildirimler ---
                 notification = self.notifications.check_whatsapp_notification_simple()
                 if notification:
-                    print(f"[📱] {notification['app']}: {notification.get('message', 'Yeni Bildirim')}")
+                    print(f"{Y}[📱]{RESET} {W}{notification['app']}: {notification.get('message', 'Yeni Bildirim')}{RESET}")
                     self.client.send_notification(notification['app'], notification.get('message', 'Yeni Bildirim'))
                     self._overlay_active = True
                     self._overlay_end_time = current_time + NOTIFICATION_OVERLAY_DURATION
@@ -99,7 +108,7 @@ class GGExt:
                     vol = volume_change['volume']
                     muted = volume_change['muted']
                     status = "MUTED" if muted else f"{vol}%"
-                    print(f"[🔊] Ses: {status}")
+                    print(f"{C}[🔊]{RESET} {W}Ses: {status}{RESET}")
                     self.client.send_volume(vol, muted)
                     self._overlay_active = True
                     self._overlay_end_time = current_time + VOLUME_OVERLAY_DURATION
@@ -123,7 +132,7 @@ class GGExt:
                 if track:
                     # Spotify çalıyor - şarkı var
                     if last_track != track.get('title'):
-                        print(f"[♫] {track['artist']} - {track['title']}")
+                        print(f"{G}[♫]{RESET} {W}{track['artist']} - {track['title']}{RESET}")
                         last_track = track.get('title')
                         self.spotify.reset_scroll()
                         combined_scroll = 0
@@ -132,7 +141,7 @@ class GGExt:
                     progress_info = self.spotify.get_progress_info()
 
                     if DEBUG_PROGRESS:
-                        print(f"[DBG] get_progress_info returned: {progress_info}")
+                        print(f"{D}[DBG]{RESET} {W}get_progress_info returned: {progress_info}{RESET}")
 
                     if progress_info and progress_info.get('duration_ms', 0) > 0:
                         # Süre gösterimli mod
@@ -146,7 +155,7 @@ class GGExt:
                         )
                         if DEBUG_PROGRESS:
                             est_flag = progress_info.get('estimated', False)
-                            print(f"[DBG] progress={progress_info['progress_str']} ({progress_info['progress_ms']}ms) duration={progress_info['duration_str']} estimated={est_flag} send_ok={ok} scroll={combined_scroll}")
+                            print(f"{D}[DBG]{RESET} {W}progress={progress_info['progress_str']} ({progress_info['progress_ms']}ms) duration={progress_info['duration_str']} estimated={est_flag} send_ok={ok} scroll={combined_scroll}{RESET}")
                         combined_scroll += 1
                     else:
                         # Süre bilgisi yok, normal mod
@@ -159,7 +168,7 @@ class GGExt:
                 else:
                     # Şarkı yok - saat modu
                     if last_track is not None:
-                        print(f"[◷] Saat modu")
+                        print(f"{D}[◷]{RESET} {W}Saat modu{RESET}")
                         last_track = None
                         self.spotify.reset_scroll()
                         combined_scroll = 0
@@ -176,21 +185,21 @@ class GGExt:
                 time.sleep(UPDATE_INTERVAL)
 
             except Exception as e:
-                print(f"[!] Hata: {e}")
+                print(f"{R}[!]{RESET} {W}Hata: {e}{RESET}")
                 time.sleep(1)
 
         # Kapanış animasyonu
-        print("\n[*] Kapaniyor...")
+        print(f"\n{Y}[*]{RESET} {W}Kapaniyor...{RESET}")
         self.client.play_outro()
-        print("[OK] Kapatildi.")
+        print(f"{G}[OK]{RESET} {W}Kapatildi.{RESET}")
 
 
 def main():
     app = GGExt()
     
     if not app.start():
-        print("\n[X] Baslatilamadi!")
-        print("    SteelSeries GG calistiginden emin ol.")
+        print(f"\n{R}[X]{RESET} Baslatilamadi!")
+        print(f"    {D}SteelSeries GG calistiginden emin ol.{RESET}")
         input("\nEnter'a bas...")
         sys.exit(1)
     

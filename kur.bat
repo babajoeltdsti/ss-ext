@@ -83,3 +83,5 @@ echo   [93mdurdur.bat[0m
 echo.
 
 echo.
+
+pause
