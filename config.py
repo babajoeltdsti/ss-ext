@@ -1,35 +1,41 @@
 """
 SteelSeries OLED Eklentisi - Yapılandırma
+SADECE WINDOWS DESTEKLİ
 """
 import os
+import sys
 import platform
+
+# ===== WINDOWS KONTROLÜ =====
+if platform.system() != "Windows":
+    print("=" * 50)
+    print("  HATA: Bu uygulama sadece Windows'ta calisir!")
+    print(f"  Mevcut sistem: {platform.system()}")
+    print("=" * 50)
+    sys.exit(1)
+
+# ===== SÜRÜM BİLGİSİ (Tek yerden yönetim) =====
+VERSION = "1.5.3"
+VERSION_DISPLAY = f"V{VERSION}"
 
 # Uygulama bilgileri
 GAME_NAME = "GGEXT"
-GAME_DISPLAY_NAME = "GG-EXT V1.0"
+GAME_DISPLAY_NAME = f"GG-EXT {VERSION_DISPLAY}"
 DEVELOPER = "OMERBABACO"
 
-# Güncelleme aralığı (saniye) - daha hızlı güncelleme
+# Güncelleme aralığı (saniye) - 0.2 saniye = anlık güncelleme
 UPDATE_INTERVAL = 0.2
 
-# coreProps.json konumu
+# coreProps.json konumu (sadece Windows)
 def get_core_props_path():
-    system = platform.system()
-    
-    if system == "Windows":
-        return os.path.join(
-            os.environ.get("PROGRAMDATA", "C:\\ProgramData"),
-            "SteelSeries", "SteelSeries Engine 3", "coreProps.json"
-        )
-    elif system == "Darwin":
-        return "/Library/Application Support/SteelSeries Engine 3/coreProps.json"
-    else:
-        return os.path.expanduser("~/.config/SteelSeries Engine 3/coreProps.json")
+    return os.path.join(
+        os.environ.get("PROGRAMDATA", "C:\\ProgramData"),
+        "SteelSeries", "SteelSeries Engine 3", "coreProps.json"
+    )
 
 # İkon ID'leri (SteelSeries GameSense)
-# Resmi liste: https://github.com/SteelSeries/gamesense-sdk/blob/master/doc/api/json-handlers-screen.md
 ICONS = {
     "none": 0,
-    "clock": 15,   # Saat ikonu (doğrulandı)
-    "music": 34,    # Müzik için özel ikon yok, none kullan
+    "clock": 15,
+    "music": 34,
 }

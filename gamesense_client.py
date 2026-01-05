@@ -82,6 +82,13 @@ class GameSenseClient:
                 {"has-text": True, "context-frame-key": "title", "bold": True},
                 {"has-text": True, "context-frame-key": "artist"}
             ]),
+            # Spotify süre gösterimli handler (3 satır simülasyonu - 2 satırda)
+            # Satır 1: Şarkı adı
+            # Satır 2: Sanatçı | Süre
+            ("SPOTIFY_TIME", ICONS["music"], [
+                {"has-text": True, "context-frame-key": "title", "bold": True},
+                {"has-text": True, "context-frame-key": "info"}
+            ]),
             ("VOLUME", ICONS["none"], [
                 {"has-text": True, "context-frame-key": "title", "bold": True},
                 {"has-text": True, "context-frame-key": "level"}
@@ -127,8 +134,9 @@ class GameSenseClient:
     
     def play_intro(self):
         """GG-EXT Intro"""
+        from config import VERSION_DISPLAY
         print("\n" + "=" * 35)
-        print("         G G - E X T   V 2 . 0")
+        print(f"       G G - E X T   {VERSION_DISPLAY}")
         print("=" * 35 + "\n")
         
         for frame in INTRO_TEXT_FRAMES:
@@ -153,24 +161,51 @@ class GameSenseClient:
         return self.send_event("CLOCK", {"time": time_str, "date": date_str})
     
     def send_spotify(self, title: str, artist: str) -> bool:
-        """Spotify şarkı bilgisi"""
+        """Spotify şarkı bilgisi (süresiz)"""
         return self.send_event("SPOTIFY", {"title": title, "artist": artist})
+    
+    def send_spotify_with_time(self, title: str, artist: str, current_time: str, total_time: str, combined_scroll: int = 0) -> bool:
+        """
+        Spotify şarkı bilgisi + Süre gösterimi
+        OLED:
+          Satır 1: "ŞARKI - SANATÇI" (kaydırmalı olabilir)
+          Satır 2: "1:23/3:45" (sadece süre)
+        """
+        max_line_len = 16
+        time_display = f"{current_time}/{total_time}"
+
+        combined = f"{title} - {artist}"
+        if len(combined) <= max_line_len:
+            title_line = combined
+        else:
+            scroll_text = combined + "    "
+            text_len = len(scroll_text)
+            start = combined_scroll % text_len
+            title_line = ""
+            for i in range(max_line_len):
+                idx = (start + i) % text_len
+                title_line += scroll_text[idx]
+
+        return self.send_event("SPOTIFY_TIME", {
+            "title": title_line,
+            "info": time_display
+        })
     
     def send_volume(self, volume: int, muted: bool = False) -> bool:
         """Ses seviyesini ekranda göster"""
         if muted:
-            title = "  SES KAPALI"
-            level = "     MUTED"
+            title = "    SESSIZ"
+            level = "     KAPALI"
         else:
             title = "  SES SEVIYESI"
-            # Progress bar oluştur (daha kısa)
+            # Progress bar oluştur
             bar_len = 8
             filled = int(volume / 100 * bar_len)
             bar = "█" * filled + "░" * (bar_len - filled)
-            level = f"  {bar} {volume}%"
+            level = f"  {bar} %{volume}"
         return self.send_event("VOLUME", {"title": title, "level": level})
     
-    def send_notification(self, app: str, message: str = "Yeni Bildirim") -> bool:
+    def send_notification(self, app: str, message: str = "Bildirim") -> bool:
         """Bildirim göster"""
         return self.send_event("NOTIFICATION", {"app": f"    {app}", "message": f"  {message}"})
     

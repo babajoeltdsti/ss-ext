@@ -1,4 +1,4 @@
-# GG-EXT V1.0 - SteelSeries OLED Eklentisi
+# GG-EXT V1.5.3 - SteelSeries OLED Eklentisi
 
 SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen bir GameSense eklentisidir.
 
@@ -10,6 +10,7 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 
 - ⏰ **Saat ve Tarih** - Gerçek zamanlı saat gösterimi
 - 🎵 **Spotify Entegrasyonu** - Şu an çalan şarkı bilgisi
+- � **Şarkı Progress Bar** - Şarkının ilerleme durumu (süre göstergesi ile)
 - 🔊 **Ses Kontrolü** - Sistem ses seviyesi göstergesi ve mute durumu
 - ✉️ **Bildirim Desteği** - Windows bildirimleri
 
@@ -25,10 +26,12 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
   - `WMI>=1.5.1`
   - `pycaw>=20230407`
   - `comtypes>=1.2.0`
+  - `winrt-Windows.Media.Control>=2.0.0` (Şarkı progress bar için)
+  - `winrt-Windows.Foundation>=2.0.0`
 
 ## 🔧 Nasıl Çalışır?
 
-**EĞER ARKAPLANDA CMD EKRANI OLMADAN ÇALIŞMASINI İSTİYORSANIZ,** "start_hidden.vbs" dosyasını çalıştırın. Böylece görüntü kirliliği olmadan çalışacaktır.
+**EĞER ARKAPLANDA CMD EKRANI OLMADAN ÇALIŞMASINI İSTİYORSANIZ,** "gizli_baslat.vbs" dosyasını çalıştırın. Böylece görüntü kirliliği olmadan çalışacaktır.
 
 SteelSeries GameSense SDK, localhost'ta bir REST API sunucusu çalıştırır. Bu eklenti:
 
@@ -41,7 +44,7 @@ SteelSeries GameSense SDK, localhost'ta bir REST API sunucusu çalıştırır. B
 
 ### Otomatik Kurulum (Windows)
 ```batch
-install.bat
+kur.bat
 ```
 
 ### Manuel Kurulum
@@ -62,10 +65,10 @@ pip install -r requirements.txt
 python main.py
 
 # veya Windows batch dosyası ile
-start.bat
+baslat.bat
 
 # Gizli pencerede başlatma (arka planda)
-start_hidden.vbs
+gizli_baslat.vbs
 ```
 
 ### Durdurma
@@ -74,7 +77,7 @@ start_hidden.vbs
 python stop_graceful.py
 
 # veya
-stop.bat
+durdur.bat
 ```
 
 ## 📁 Dosya Yapısı
@@ -88,10 +91,10 @@ ss-ext/
 ├── intro_animation.py   # Başlangıç animasyonu
 ├── stop_graceful.py     # Düzgün kapatma scripti
 ├── requirements.txt     # Python bağımlılıkları
-├── install.bat          # Windows kurulum scripti
-├── start.bat            # Windows başlatma scripti
-├── start_hidden.vbs     # Gizli pencerede başlatma
-├── stop.bat             # Windows durdurma scripti
+├── kur.bat              # Windows kurulum scripti
+├── baslat.bat           # Windows başlatma scripti
+├── gizli_baslat.vbs     # Gizli pencerede başlatma
+├── durdur.bat           # Windows durdurma scripti
 └── README.md            # Bu dosya
 ```
 

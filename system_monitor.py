@@ -275,7 +275,7 @@ class SystemMonitor:
     """Saat bilgisi"""
     
     def get_clock_display(self) -> Dict[str, str]:
-        """OLED için saat (saniyeli) + tarih"""
+        """OLED için saat (AM/PM) + tarih (AY/GUN/YIL)"""
         now = datetime.now()
         return {
             "time": now.strftime("%I:%M:%S %p"),
@@ -284,11 +284,171 @@ class SystemMonitor:
 
 
 class SpotifyMonitor:
-    """Sadece Spotify'dan çalan şarkı bilgisi"""
+    """Sadece Spotify'dan çalan şarkı bilgisi + Progress Bar"""
     
     def __init__(self):
         self._scroll_pos = 0
         self._last_track: str = ""
+        self._session_manager = None
+        self._last_progress_ms: int = 0
+        self._last_duration_ms: int = 0
+        self._last_update_time: float = 0
+        self._is_playing: bool = False
+        self._init_media_session()
+    
+    def _init_media_session(self):
+        """Windows Media Session API'yi başlat (progress için)"""
+        try:
+            # winrt paketi kullanarak GlobalSystemMediaTransportControlsSessionManager
+            from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionManager
+            import asyncio
+            
+            async def get_manager():
+                return await GlobalSystemMediaTransportControlsSessionManager.request_async()
+            
+            # Event loop oluştur veya mevcut olanı kullan
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            self._session_manager = loop.run_until_complete(get_manager())
+            print("[OK] Media Session API aktif (Progress Bar destegi)")
+        except ImportError as e:
+            print(f"[!] winrt paketi yüklenemedi: {e}")
+            print("    Progress bar devre disi, sadece sarki bilgisi gosterilecek")
+            self._session_manager = None
+        except Exception as e:
+            print(f"[!] Media Session hatasi: {e}")
+            self._session_manager = None
+    
+    def get_progress_info(self) -> Optional[Dict[str, any]]:
+        """
+        Şarkı progress bilgisini döndürür.
+        Returns: {
+            'progress_ms': int,  # Mevcut pozisyon (milisaniye)
+            'duration_ms': int,  # Toplam süre (milisaniye) 
+            'progress_percent': float,  # 0-100 arası yüzde
+            'is_playing': bool
+        }
+        
+        Bu fonksiyon, Media Session'dan düzenli güncelleme alamıyorsa cache'deki
+        son değerleri kullanarak oynatılıyorsa tahmini bir ilerleme hesaplar.
+        """
+        try_estimate = False
+        # Eğer session manager yoksa direkt olarak tahmin dene
+        if self._session_manager is None:
+            try_estimate = True
+
+        try:
+            if not try_estimate:
+                session = self._session_manager.get_current_session()
+                if session is None:
+                    try_estimate = True
+                else:
+                    # Sadece Spotify session'ı mı kontrol et
+                    app_id = session.source_app_user_model_id
+                    if app_id and 'spotify' not in app_id.lower():
+                        try_estimate = True
+                    else:
+                        # Timeline bilgisini al
+                        timeline = session.get_timeline_properties()
+                        playback_info = session.get_playback_info()
+
+                        # Position ve Duration (timedelta objesi -> milisaniye)
+                        progress_ms = int(timeline.position.total_seconds() * 1000)
+                        duration_ms = int(timeline.end_time.total_seconds() * 1000)
+
+                        # Playback durumu
+                        from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionPlaybackStatus
+                        is_playing = playback_info.playback_status == GlobalSystemMediaTransportControlsSessionPlaybackStatus.PLAYING
+
+                        # Geçerli süre kontrolü
+                        if duration_ms <= 0:
+                            return None
+
+                        now = time.time()
+                        min_advance_ms = 400  # küçük artışları yoksay (ms)
+
+                        if self._last_progress_ms is None or progress_ms > self._last_progress_ms + min_advance_ms:
+                            # Gerçek ilerleme kabul edilsin
+                            progress_percent = min(100.0, (progress_ms / duration_ms) * 100) if duration_ms > 0 else 0
+                            self._last_progress_ms = progress_ms
+                            self._last_duration_ms = duration_ms
+                            self._is_playing = is_playing
+                            self._last_update_time = now
+
+                            return {
+                                'progress_ms': progress_ms,
+                                'duration_ms': duration_ms,
+                                'progress_percent': progress_percent,
+                                'is_playing': is_playing,
+                                'progress_str': self._format_time(progress_ms),
+                                'duration_str': self._format_time(duration_ms),
+                                'estimated': False
+                            }
+                        else:
+                            # API güncellemesi gecikiyorsa bizim cache ve geçen süre ile tahmin hesapla
+                            elapsed = now - getattr(self, '_last_update_time', now)
+                            est_progress = min(duration_ms, self._last_progress_ms + int(elapsed * 1000))
+                            progress_percent = min(100.0, (est_progress / duration_ms) * 100) if duration_ms > 0 else 0
+
+                            # Cache'i tahmini değere göre güncelle
+                            self._last_progress_ms = est_progress
+                            self._last_duration_ms = duration_ms
+                            self._is_playing = is_playing
+                            self._last_update_time = now
+
+                            return {
+                                'progress_ms': est_progress,
+                                'duration_ms': duration_ms,
+                                'progress_percent': progress_percent,
+                                'is_playing': is_playing,
+                                'progress_str': self._format_time(est_progress),
+                                'duration_str': self._format_time(duration_ms),
+                                'estimated': True
+                            }
+        except Exception:
+            # Eğer gerçek sorgu başarısız olursa, aşağıda cache üzerinden tahmin denenecek
+            try_estimate = True
+
+        # Tahmini güncelleme: son cache ve geçen süreye göre ilerleme hesapla
+        # Daha agresif: eğer elimizde geçerli bir duration varsa ve son güncelleme
+        # çok uzun geçmiş değilse veya son bilgilere göre oynatılıyorsa tahmin yap.
+        if self._last_duration_ms > 0 and (
+            self._is_playing or (time.time() - getattr(self, '_last_update_time', 0)) < 30
+        ):
+            # Eğer _last_update_time hiç set edilmediyse tahmin yapamayız
+            if getattr(self, '_last_update_time', 0) == 0:
+                return None
+
+            elapsed = time.time() - self._last_update_time
+            est_progress = min(self._last_duration_ms, self._last_progress_ms + int(elapsed * 1000))
+            progress_percent = min(100.0, (est_progress / self._last_duration_ms) * 100)
+
+            # Cache'i güncelle (bir sonraki döngüde tahmin devam etsin)
+            self._last_progress_ms = est_progress
+            self._last_update_time = time.time()
+
+            return {
+                'progress_ms': est_progress,
+                'duration_ms': self._last_duration_ms,
+                'progress_percent': progress_percent,
+                'is_playing': True,
+                'progress_str': self._format_time(est_progress),
+                'duration_str': self._format_time(self._last_duration_ms),
+                'estimated': True
+            }
+
+        return None
+    
+    def _format_time(self, ms: int) -> str:
+        """Milisaniyeyi MM:SS formatına çevir"""
+        total_seconds = ms // 1000
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        return f"{minutes}:{seconds:02d}"
     
     def get_current_track(self) -> Optional[Dict[str, str]]:
         """Spotify'dan çalan şarkı bilgisini döndürür"""
@@ -308,6 +468,15 @@ class SpotifyMonitor:
         if title != self._last_track:
             self._last_track = title
             self.reset_scroll()
+            # Yeni şarkı tespit edildiğinde hemen tahmini süre göstergesini başlat
+            # Böylece Media Session geç yanıt verirse bile süre her döngüde artar
+            try:
+                self._last_progress_ms = 0
+                # Eğer önceki duration bilinmiyorsa bırak (0) - tahmin yine ilerler
+                self._last_update_time = time.time()
+                self._is_playing = True
+            except Exception:
+                pass
         
         # "Sanatçı - Şarkı" formatını parse et
         if " - " in title:

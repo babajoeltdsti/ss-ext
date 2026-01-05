@@ -2,63 +2,89 @@
 Açılış Animasyonu - GG-EXT
 Süslü bir şekilde belirir ve silinerek kaybolur
 """
+from config import VERSION_DISPLAY
 
 # Animasyon kareleri - her biri {line1, line2, duration_ms}
 # OLED ekran ~16 karakter genişliğinde, ortalamak için boşluk ekliyoruz
-INTRO_TEXT_FRAMES = [
-    # Boş başlangıç
-    {"line1": "", "line2": "", "duration": 100},
-    
-    # Harfler tek tek beliriyor (typing efekti) - ortalanmış
-    {"line1": "      _", "line2": "", "duration": 80},
-    {"line1": "     G_", "line2": "", "duration": 80},
-    {"line1": "     GG_", "line2": "", "duration": 80},
-    {"line1": "    GG-_", "line2": "", "duration": 80},
-    {"line1": "    GG-E_", "line2": "", "duration": 80},
-    {"line1": "   GG-EX_", "line2": "", "duration": 80},
-    {"line1": "   GG-EXT_", "line2": "", "duration": 80},
-    {"line1": "   GG-EXT", "line2": "", "duration": 150},
-    
-    # Alt satır beliriyor - ortalanmış
-    {"line1": "   GG-EXT", "line2": "      _", "duration": 80},
-    {"line1": "   GG-EXT", "line2": "     V_", "duration": 80},
-    {"line1": "   GG-EXT", "line2": "    V 1_", "duration": 80},
-    {"line1": "   GG-EXT", "line2": "    V 1._", "duration": 80},
-    {"line1": "   GG-EXT", "line2": "    V 1.0", "duration": 300},
-    
-    # Parıltı efekti (süslü çerçeve) - ortalanmış
-    {"line1": "  =-GG-EXT-=", "line2": "    V 1.0", "duration": 150},
-    {"line1": "  <-GG-EXT->", "line2": "    V 1.0", "duration": 150},
-    {"line1": "  >>GG-EXT<<", "line2": "    V 1.0", "duration": 150},
-    {"line1": "  **GG-EXT**", "line2": "    V 1.0", "duration": 150},
-    {"line1": "  >>GG-EXT<<", "line2": "    V 1.0", "duration": 150},
-    {"line1": "  =-GG-EXT-=", "line2": "    V 1.0", "duration": 200},
-    
-    # Tam görünüm - biraz bekle
-    {"line1": "   GG-EXT", "line2": "    V 1.0", "duration": 800},
-    
-    # Silinme efekti - ortalanmış
-    {"line1": "   GG-EXT.", "line2": "    V 1.0", "duration": 100},
-    {"line1": "   GG-EXT..", "line2": "    V 1.0", "duration": 100},
-    {"line1": "   GG-EXT...", "line2": "    V 1.0", "duration": 100},
-    {"line1": "   GG-EX_", "line2": "    V 2._", "duration": 60},
-    {"line1": "    GG-E_", "line2": "     V 2_", "duration": 60},
-    {"line1": "    GG-_", "line2": "      V_", "duration": 60},
-    {"line1": "     GG_", "line2": "      _", "duration": 60},
-    {"line1": "     G_", "line2": "", "duration": 60},
-    {"line1": "      _", "line2": "", "duration": 60},
-    {"line1": "", "line2": "", "duration": 100},
-    
-    # Patlama ve hazır mesajı - ortalanmış
-    {"line1": "       *", "line2": "", "duration": 80},
-    {"line1": "      ***", "line2": "", "duration": 80},
-    {"line1": "     *****", "line2": "", "duration": 80},
-    {"line1": "   * HAZIR *", "line2": "", "duration": 300},
-    {"line1": "     *****", "line2": "", "duration": 80},
-    {"line1": "      ***", "line2": "", "duration": 80},
-    {"line1": "       *", "line2": "", "duration": 80},
-    {"line1": "", "line2": "", "duration": 100},
-]
+
+def get_intro_frames():
+    """Sürüm numarasıyla intro frame'lerini döndürür"""
+    return [
+        # Boş başlangıç
+        {"line1": "", "line2": "", "duration": 100},
+        
+        # Harfler tek tek beliriyor (typing efekti) - ortalanmış
+        {"line1": "      _", "line2": "", "duration": 80},
+        {"line1": "     G_", "line2": "", "duration": 80},
+        {"line1": "     GG_", "line2": "", "duration": 80},
+        {"line1": "    GG-_", "line2": "", "duration": 80},
+        {"line1": "    GG-E_", "line2": "", "duration": 80},
+        {"line1": "   GG-EX_", "line2": "", "duration": 80},
+        {"line1": "   GG-EXT_", "line2": "", "duration": 80},
+        {"line1": "   GG-EXT", "line2": "", "duration": 150},
+        
+        # Alt satır beliriyor - sürüm numarasıyla
+        {"line1": "   GG-EXT", "line2": "      _", "duration": 80},
+        {"line1": "   GG-EXT", "line2": f"   {VERSION_DISPLAY}", "duration": 300},
+        
+        # Parıltı efekti (süslü çerçeve)
+        {"line1": "  =-GG-EXT-=", "line2": f"   {VERSION_DISPLAY}", "duration": 150},
+        {"line1": "  <-GG-EXT->", "line2": f"   {VERSION_DISPLAY}", "duration": 150},
+        {"line1": "  >>GG-EXT<<", "line2": f"   {VERSION_DISPLAY}", "duration": 150},
+        {"line1": "  **GG-EXT**", "line2": f"   {VERSION_DISPLAY}", "duration": 150},
+        {"line1": "  >>GG-EXT<<", "line2": f"   {VERSION_DISPLAY}", "duration": 150},
+        {"line1": "  =-GG-EXT-=", "line2": f"   {VERSION_DISPLAY}", "duration": 200},
+        
+        # Tam görünüm - biraz bekle
+        {"line1": "   GG-EXT", "line2": f"   {VERSION_DISPLAY}", "duration": 600},
+        
+        # Made By kısmı beliriyor
+        {"line1": "   GG-EXT", "line2": "   Made By_", "duration": 80},
+        {"line1": "   GG-EXT", "line2": "  Made By:_", "duration": 80},
+        {"line1": "   GG-EXT", "line2": " Made By: O_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": " Made By: OM_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": " Made By: OME_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": "Made By: OMER_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": "  By: OMERB_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": "  : OMERBA_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": "  OMERBAB_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": " OMERBABA_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": " OMERBABAC_", "duration": 60},
+        {"line1": "   GG-EXT", "line2": " OMERBABACO", "duration": 800},
+        
+        # Parıltı efekti Made By ile
+        {"line1": "  *GG-EXT*", "line2": " OMERBABACO", "duration": 150},
+        {"line1": "  **GG-EXT**", "line2": " OMERBABACO", "duration": 150},
+        {"line1": "  *GG-EXT*", "line2": " OMERBABACO", "duration": 150},
+        {"line1": "   GG-EXT", "line2": " OMERBABACO", "duration": 400},
+        
+        # Silinme efekti
+        {"line1": "   GG-EXT.", "line2": " OMERBABACO", "duration": 80},
+        {"line1": "   GG-EXT..", "line2": " OMERBABAC_", "duration": 60},
+        {"line1": "   GG-EXT...", "line2": " OMERBABA_", "duration": 60},
+        {"line1": "   GG-EX_", "line2": "  OMERBAB_", "duration": 60},
+        {"line1": "    GG-E_", "line2": "  OMERBA_", "duration": 60},
+        {"line1": "    GG-_", "line2": "   OMERB_", "duration": 60},
+        {"line1": "     GG_", "line2": "   OMER_", "duration": 60},
+        {"line1": "     G_", "line2": "    OME_", "duration": 60},
+        {"line1": "      _", "line2": "    OM_", "duration": 60},
+        {"line1": "", "line2": "     O_", "duration": 60},
+        {"line1": "", "line2": "      _", "duration": 60},
+        {"line1": "", "line2": "", "duration": 100},
+        
+        # Patlama ve hazır mesajı
+        {"line1": "       *", "line2": "", "duration": 80},
+        {"line1": "      ***", "line2": "", "duration": 80},
+        {"line1": "     *****", "line2": "", "duration": 80},
+        {"line1": "   * HAZIR *", "line2": "", "duration": 300},
+        {"line1": "     *****", "line2": "", "duration": 80},
+        {"line1": "      ***", "line2": "", "duration": 80},
+        {"line1": "       *", "line2": "", "duration": 80},
+        {"line1": "", "line2": "", "duration": 100},
+    ]
+
+# Eski değişken isimleri için uyumluluk
+INTRO_TEXT_FRAMES = get_intro_frames()
 
 # Kapanış animasyonu - yavaşça kapanıyor (ortalanmış)
 OUTRO_TEXT_FRAMES = [
