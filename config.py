@@ -16,18 +16,18 @@ if platform.system() != "Windows":
     sys.exit(1)
 
 # ===== SÜRÜM BİLGİSİ (Tek yerden yönetim) =====
-VERSION = "2.1"
+VERSION = "2.1.1"
 VERSION_DISPLAY = f"V{VERSION}"
 
 # Uygulama bilgileri
-GAME_NAME = "GGEXT"
-GAME_DISPLAY_NAME = f"GG-EXT {VERSION_DISPLAY}"
+GAME_NAME = "SSEXT"
+GAME_DISPLAY_NAME = f"SS-EXT {VERSION_DISPLAY}"
 DEVELOPER = "OMERBABACO"
 
 # ===== OTOMATİK GÜNCELLEME AYARLARI =====
 # GitHub repo bilgileri (güncelleme kontrolü için)
-GITHUB_REPO_OWNER = "OMERBABACO"
-GITHUB_REPO_NAME = "GG-EXT"
+GITHUB_REPO_OWNER = "babajoeltdsti"
+GITHUB_REPO_NAME = "ss-ext"
 # Otomatik güncelleme açık/kapalı
 AUTO_UPDATE_ENABLED = True
 
