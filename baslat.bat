@@ -35,7 +35,7 @@ echo      [92mOK[0m - Sanal ortam aktif
 
 echo.
 echo  [93m[*][0m  [97mSS-EXT baslatiliyor...[0m
-python main.py
+python main.py %*
 
 echo.
 echo  [92m[OK][0m  [97mSS-EXT kapandi.[0m

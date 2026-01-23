@@ -37,6 +37,8 @@ parser.add_argument("--debug", action="store_true")
 args, _ = parser.parse_known_args()
 if args.debug:
     DEBUG_PROGRESS = True
+    # Also set the env var so modules that read SSEXT_DEBUG see it
+    os.environ["SSEXT_DEBUG"] = "1"
 
 
 class GGExt:
