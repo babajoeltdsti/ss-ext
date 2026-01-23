@@ -277,24 +277,40 @@ class GameSenseClient:
 
     def send_notification(self, app: str, message: str = "Bildirim", scroll_offset: int = 0) -> bool:
         """Bildirim göster (mesajlaşma uygulamaları için). Uzun mesajlar kayan yazı olur."""
-        # Uygulama satırı - kısa isimleri ortala, uzun ise kısalt
-        app_display = app if len(app) <= 16 else app[:16]
-        app_centered = app_display.center(16)
+        # Başlık (app) için 10 karakter sınırı; uzun ise kayan yazı kullan
+        title_width = 10
+        app_display = app if len(app) <= title_width else app[:title_width]
+        app_display = app_display.center(title_width)
 
-        # Mesaj satırı - kayan yazı desteği
-        message_display = self._scroll_text(message, 16, scroll_offset)
+        # Mesaj satırı - kısa mesajları soldan hizala (boşluk olmasın), uzun mesajları kaydır
+        if not message:
+            message_display = "".ljust(16)
+        elif len(message) <= 16:
+            message_display = message.ljust(16)
+        else:
+            message_display = self._scroll_text(message, 16, scroll_offset)
+
+        # Compose final 16-char lines: place title (10 chars) at line start, pad to 16
+        app_line = app_display.ljust(16)[:16]
+        message_line = message_display.ljust(16)[:16]
 
         return self.send_event(
-            "NOTIFICATION", {"app": app_centered, "message": message_display}
+            "NOTIFICATION", {"app": app_line, "message": message_line}
         )
 
     def send_email_notification(self, subject: str, sender: str, scroll_offset: int = 0) -> bool:
         """E-posta bildirimi göster. Uzun konu ve gönderenler kayan yazı olarak gösterilir."""
-        # Subject ve sender için kayan yazı veya ortalama
-        subject_display = self._scroll_text(subject, 16, scroll_offset)
-        sender_display = self._scroll_text(sender, 16, scroll_offset)
+        # Subject ve sender için 10 karakter sınırı; uzun ise kayan yazı göster
+        title_width = 10
+        subject_display = self._scroll_text(subject, title_width, scroll_offset)
+        sender_display = self._scroll_text(sender, title_width, scroll_offset)
+
+        # Place subject/sender at line start and pad to 16 chars (no leading gap)
+        subject_line = subject_display.ljust(16)[:16]
+        sender_line = sender_display.ljust(16)[:16]
+
         return self.send_event(
-            "EMAIL_NOTIFICATION", {"subject": subject_display, "sender": sender_display}
+            "EMAIL_NOTIFICATION", {"subject": subject_line, "sender": sender_line}
         )
 
     def send_update_message(self, title: str, status: str) -> bool:

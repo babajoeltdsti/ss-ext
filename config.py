@@ -24,7 +24,7 @@ if platform.system() != "Windows":
     sys.exit(1)
 
 # ===== SÜRÜM BİLGİSİ (Tek yerden yönetim) =====
-VERSION = "2.2.0"
+VERSION = "2.2.1"
 VERSION_DISPLAY = f"V{VERSION}"
 
 # Uygulama bilgileri
@@ -59,7 +59,7 @@ SMTP_PORT = int(os.environ.get("SSEXT_SMTP_PORT", "587"))
 SMTP_STARTTLS = os.environ.get("SSEXT_SMTP_STARTTLS", "True").lower() == "true"
 
 # E-posta kontrol aralığı (saniye)
-EMAIL_CHECK_INTERVAL = int(os.environ.get("SSEXT_EMAIL_CHECK_INTERVAL", "30"))
+EMAIL_CHECK_INTERVAL = int(os.environ.get("SSEXT_EMAIL_CHECK_INTERVAL", "10"))
 # E-posta bildirimi gösterim süresi (saniye)
 EMAIL_DISPLAY_DURATION = int(os.environ.get("SSEXT_EMAIL_DISPLAY_DURATION", "10"))
 # E-posta bildirimi aktif/pasif

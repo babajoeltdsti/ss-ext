@@ -9,7 +9,7 @@ import sys
 import time
 
 from gamesense_client import GameSenseClient
-from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED, EMAIL_DISPLAY_DURATION
+from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED, EMAIL_DISPLAY_DURATION, ICONS
 from auto_updater import check_and_update
 from system_monitor import (
     EmailMonitor,
@@ -124,13 +124,32 @@ class GGExt:
                         print(
                             f"{Y}[📧]{RESET} {W}Yeni E-posta: {email_notif['sender']} - {email_notif['subject']}{RESET}"
                         )
-                        # Gösterimi kayan yazı ile tekrarlayarak yap
-                        steps = max(1, int(EMAIL_OVERLAY_DURATION / UPDATE_INTERVAL))
-                        for i in range(steps):
+
+                        # Başlık/gönderen için 10 karakter sınırı (scroll hedefi)
+                        title_width = 10
+
+                        # Scroll gereksinimi için her iki metnin kaydırma uzunluğunu hesapla
+                        def scroll_length(s: str) -> int:
+                            if not s:
+                                return 1
+                            if len(s) <= title_width:
+                                return 1
+                            return len(s + "    ")
+
+                        subj_len = scroll_length(email_notif.get("subject", ""))
+                        sender_len = scroll_length(email_notif.get("sender", ""))
+
+                        # En az steps: görüntü süresi / update interval
+                        base_steps = max(1, int(EMAIL_OVERLAY_DURATION / UPDATE_INTERVAL))
+                        # Tam döngü göstermek için gereken adım sayısı
+                        needed_steps = max(subj_len, sender_len, base_steps)
+
+                        for i in range(needed_steps):
                             self.client.send_email_notification(
                                 email_notif["subject"], email_notif["sender"], scroll_offset=i
                             )
                             time.sleep(UPDATE_INTERVAL)
+
                         # Overlay sonrası kısa bekleme
                         self._overlay_active = True
                         self._overlay_end_time = current_time + 0.01

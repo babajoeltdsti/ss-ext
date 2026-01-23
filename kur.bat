@@ -1,11 +1,11 @@
 @echo off
 setlocal enableextensions enabledelayedexpansion
 chcp 65001 >nul 2>&1
-title SS-EXT V2.2.0 - Kurulum
+title SS-EXT V2.2.1 - Kurulum
 
 cls
 echo ========================================
-echo   SS-EXT V2.2.0 - Kurulum
+echo   SS-EXT V2.2.1 - Kurulum
 echo   Yapimci: OMERBABACO
 echo ========================================
 echo.
