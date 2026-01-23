@@ -530,7 +530,7 @@ class SpotifyMonitor:
         self._scroll_pos = 0
         self._last_track: str = ""
         self._session_manager = None
-        self._last_progress_ms: int = 0
+        self._last_progress_ms: Optional[int] = None
         self._last_duration_ms: int = 0
         self._last_update_time: float = 0
         self._is_playing: bool = False
@@ -777,10 +777,14 @@ class SpotifyMonitor:
             # Yeni şarkı tespit edildiğinde hemen tahmini süre göstergesini başlat
             # Böylece Media Session geç yanıt verirse bile süre her döngüde artar
             try:
-                self._last_progress_ms = 0
-                # Eğer önceki duration bilinmiyorsa bırak (0) - tahmin yine ilerler
-                self._last_update_time = time.time()
+                # Yeni şarkı tespitinde önceki cache'i sıfırla, böylece
+                # bir sonraki gerçek API okuması doğru değeri set eder.
+                self._last_progress_ms = None
+                self._last_duration_ms = 0
+                self._last_update_time = 0
                 self._is_playing = True
+                # gösterim saniye geçmişini de sıfırla
+                self._last_display_sec = None
             except Exception:
                 pass
 
