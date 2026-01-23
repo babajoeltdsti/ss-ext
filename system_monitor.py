@@ -10,7 +10,30 @@ import threading
 import unicodedata
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Optional / platform-specific runtime deps - help static checkers (pyright/pylance)
+    try:
+        # pycaw and comtypes (audio)
+        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume  # type: ignore
+        from comtypes import CLSCTX_ALL  # type: ignore
+    except Exception:
+        pass
+
+    try:
+        # Media Session API (winrt)
+        from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionManager  # type: ignore
+    except Exception:
+        pass
+
+    try:
+        # Windows GUI helpers
+        import psutil  # type: ignore
+        import win32gui  # type: ignore
+        import win32process  # type: ignore
+    except Exception:
+        pass
 
 
 class EmailMonitor:
@@ -239,7 +262,7 @@ class VolumeMonitor:
     def _init_audio(self):
         """Windows Audio API'yi başlat"""
         try:
-            from pycaw.pycaw import AudioUtilities
+            from pycaw.pycaw import AudioUtilities  # type: ignore[import]
 
             speakers = AudioUtilities.GetSpeakers()
 
@@ -250,8 +273,8 @@ class VolumeMonitor:
 
             if hasattr(speakers, "Activate"):
                 from ctypes import POINTER, cast
-                from comtypes import CLSCTX_ALL
-                from pycaw.pycaw import IAudioEndpointVolume
+                from comtypes import CLSCTX_ALL  # type: ignore[import]
+                from pycaw.pycaw import IAudioEndpointVolume  # type: ignore[import]
 
                 interface = speakers.Activate(
                     IAudioEndpointVolume._iid_, CLSCTX_ALL, None
@@ -341,14 +364,6 @@ class VolumeMonitor:
             return {"volume": self._last_volume, "muted": self._last_mute}
 
         return None
-        except ImportError:
-            print("[!] pycaw yüklü değil: pip install pycaw")
-        except Exception as e:
-            print(f"[!] pycaw hatası: {e}")
-
-        # Fallback: winmm (master volume değil ama bir şey)
-        self._endpoint_volume = "winmm"
-        print("[OK] Ses izleme aktif (winmm fallback)")
 
     def get_volume(self) -> Optional[int]:
         """Mevcut ses seviyesini yüzde olarak döndürür (0-100)"""
@@ -622,7 +637,7 @@ class SpotifyMonitor:
             # winrt paketi kullanarak GlobalSystemMediaTransportControlsSessionManager
             import asyncio
 
-            from winrt.windows.media.control import (
+            from winrt.windows.media.control import (  # type: ignore[import]
                 GlobalSystemMediaTransportControlsSessionManager,
             )
 
@@ -686,7 +701,7 @@ class SpotifyMonitor:
                         duration_ms = int(timeline.end_time.total_seconds() * 1000)
 
                         # Playback durumu
-                        from winrt.windows.media.control import (
+                        from winrt.windows.media.control import (  # type: ignore[import]
                             GlobalSystemMediaTransportControlsSessionPlaybackStatus,
                         )
 
@@ -890,9 +905,9 @@ class SpotifyMonitor:
 
         # Önce win32gui dene (daha hızlı)
         try:
-            import psutil
-            import win32gui
-            import win32process
+            import psutil  # type: ignore[import]
+            import win32gui  # type: ignore[import]
+            import win32process  # type: ignore[import]
 
             result_title = None
 
