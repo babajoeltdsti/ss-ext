@@ -84,4 +84,38 @@ echo.
 
 echo.
 
+:: E-posta yapılandırması iste
+set /p USER_EMAIL_CONFIG="E-posta yapılandırması yapmak ister misiniz? (E/h): "
+if /i "%USER_EMAIL_CONFIG%"=="E" (
+    echo.
+    set /p SSEXT_EMAIL_ADDRESS_INPUT="E-posta adresi (örnek: info@ornek.com): "
+    set /p SSEXT_EMAIL_PASSWORD_INPUT="E-posta şifresi (gizli): "
+    set /p SSEXT_IMAP_SERVER_INPUT="IMAP sunucu (gelen) (örnek: mail.ornek.com): "
+    set /p SSEXT_IMAP_PORT_INPUT="IMAP port (varsayılan 993): "
+    if "%SSEXT_IMAP_PORT_INPUT%"=="" set SSEXT_IMAP_PORT_INPUT=993
+    set /p SSEXT_IMAP_SSL_INPUT="IMAP SSL? (True/False) (varsayılan True): "
+    if "%SSEXT_IMAP_SSL_INPUT%"=="" set SSEXT_IMAP_SSL_INPUT=True
+    set /p SSEXT_SMTP_SERVER_INPUT="SMTP sunucu (giden) (örnek: mail.ornek.com) (boş bırakılabilir): "
+    set /p SSEXT_SMTP_PORT_INPUT="SMTP port (varsayılan 587): "
+    if "%SSEXT_SMTP_PORT_INPUT%"=="" set SSEXT_SMTP_PORT_INPUT=587
+    set /p SSEXT_SMTP_STARTTLS_INPUT="SMTP STARTTLS? (True/False) (varsayılan True): "
+    if "%SSEXT_SMTP_STARTTLS_INPUT%"=="" set SSEXT_SMTP_STARTTLS_INPUT=True
+
+    echo Ayarlar kullanici ortam değişkeni olarak kaydediliyor...
+    setx SSEXT_EMAIL_ADDRESS "%SSEXT_EMAIL_ADDRESS_INPUT%"
+    setx SSEXT_EMAIL_PASSWORD "%SSEXT_EMAIL_PASSWORD_INPUT%"
+    setx SSEXT_IMAP_SERVER "%SSEXT_IMAP_SERVER_INPUT%"
+    setx SSEXT_IMAP_PORT "%SSEXT_IMAP_PORT_INPUT%"
+    setx SSEXT_IMAP_SSL "%SSEXT_IMAP_SSL_INPUT%"
+    if not "%SSEXT_SMTP_SERVER_INPUT%"=="" (
+        setx SSEXT_SMTP_SERVER "%SSEXT_SMTP_SERVER_INPUT%"
+        setx SSEXT_SMTP_PORT "%SSEXT_SMTP_PORT_INPUT%"
+        setx SSEXT_SMTP_STARTTLS "%SSEXT_SMTP_STARTTLS_INPUT%"
+    )
+
+    echo Ortam değişkenleri kaydedildi. Oturum değişiklikleri için oturumu kapatıp açmanız gerekebilir.
+)
+
+echo.
+
 pause

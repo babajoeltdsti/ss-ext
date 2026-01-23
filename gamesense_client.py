@@ -211,6 +211,23 @@ class GameSenseClient:
         """Spotify şarkı bilgisi (süresiz)"""
         return self.send_event("SPOTIFY", {"title": title, "artist": artist})
 
+    def _scroll_text(self, text: str, max_len: int = 16, offset: int = 0) -> str:
+        """Kayan yazı için belirli bir offset ile 16 karakterlik görüntü döndürür."""
+        if not text:
+            return "".center(max_len)
+
+        if len(text) <= max_len:
+            return text.center(max_len)
+
+        scroll_text = text + "    "
+        text_len = len(scroll_text)
+        start = offset % text_len
+        display = ""
+        for i in range(max_len):
+            idx = (start + i) % text_len
+            display += scroll_text[idx]
+        return display
+
     def send_spotify_with_time(
         self,
         title: str,
@@ -258,27 +275,26 @@ class GameSenseClient:
             level = f"{bar} %{volume}".center(16)
         return self.send_event("VOLUME", {"title": title, "level": level})
 
-    def send_notification(self, app: str, message: str = "Bildirim") -> bool:
-        """Bildirim göster (mesajlaşma uygulamaları için)"""
-        # Metni ortala (16 karakter ekran genişliği)
-        app_centered = app.center(16)
-        message_centered = message.center(16)
+    def send_notification(self, app: str, message: str = "Bildirim", scroll_offset: int = 0) -> bool:
+        """Bildirim göster (mesajlaşma uygulamaları için). Uzun mesajlar kayan yazı olur."""
+        # Uygulama satırı - kısa isimleri ortala, uzun ise kısalt
+        app_display = app if len(app) <= 16 else app[:16]
+        app_centered = app_display.center(16)
+
+        # Mesaj satırı - kayan yazı desteği
+        message_display = self._scroll_text(message, 16, scroll_offset)
+
         return self.send_event(
-            "NOTIFICATION", {"app": app_centered, "message": message_centered}
+            "NOTIFICATION", {"app": app_centered, "message": message_display}
         )
 
-    def send_email_notification(self, subject: str, sender: str) -> bool:
-        """E-posta bildirimi göster"""
-        # Metni ortala (16 karakter ekran genişliği)
-        # Uzun metinleri kısalt
-        if len(subject) > 16:
-            subject = subject[:13] + "..."
-        if len(sender) > 16:
-            sender = sender[:13] + "..."
-        subject_centered = subject.center(16)
-        sender_centered = sender.center(16)
+    def send_email_notification(self, subject: str, sender: str, scroll_offset: int = 0) -> bool:
+        """E-posta bildirimi göster. Uzun konu ve gönderenler kayan yazı olarak gösterilir."""
+        # Subject ve sender için kayan yazı veya ortalama
+        subject_display = self._scroll_text(subject, 16, scroll_offset)
+        sender_display = self._scroll_text(sender, 16, scroll_offset)
         return self.send_event(
-            "EMAIL_NOTIFICATION", {"subject": subject_centered, "sender": sender_centered}
+            "EMAIL_NOTIFICATION", {"subject": subject_display, "sender": sender_display}
         )
 
     def send_update_message(self, title: str, status: str) -> bool:

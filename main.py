@@ -124,14 +124,17 @@ class GGExt:
                         print(
                             f"{Y}[📧]{RESET} {W}Yeni E-posta: {email_notif['sender']} - {email_notif['subject']}{RESET}"
                         )
-                        self.client.send_email_notification(
-                            email_notif["subject"],
-                            email_notif["sender"],
-                        )
+                        # Gösterimi kayan yazı ile tekrarlayarak yap
+                        steps = max(1, int(EMAIL_OVERLAY_DURATION / UPDATE_INTERVAL))
+                        for i in range(steps):
+                            self.client.send_email_notification(
+                                email_notif["subject"], email_notif["sender"], scroll_offset=i
+                            )
+                            time.sleep(UPDATE_INTERVAL)
+                        # Overlay sonrası kısa bekleme
                         self._overlay_active = True
-                        self._overlay_end_time = current_time + EMAIL_OVERLAY_DURATION
+                        self._overlay_end_time = current_time + 0.01
                         self._overlay_type = "email"
-                        time.sleep(UPDATE_INTERVAL)
                         continue
 
                 # --- Öncelik 1: Bildirimler ---
@@ -140,16 +143,16 @@ class GGExt:
                     print(
                         f"{Y}[📱]{RESET} {W}{notification['app']}: {notification.get('message', 'Yeni Bildirim')}{RESET}"
                     )
-                    self.client.send_notification(
-                        notification["app"],
-                        notification.get("message", "Yeni Bildirim"),
-                    )
+                    # Kayan yazı ile göster (mesaj uzun ise kaydır)
+                    steps = max(1, int(NOTIFICATION_OVERLAY_DURATION / UPDATE_INTERVAL))
+                    for i in range(steps):
+                        self.client.send_notification(
+                            notification["app"], notification.get("message", "Yeni Bildirim"), scroll_offset=i
+                        )
+                        time.sleep(UPDATE_INTERVAL)
                     self._overlay_active = True
-                    self._overlay_end_time = (
-                        current_time + NOTIFICATION_OVERLAY_DURATION
-                    )
+                    self._overlay_end_time = current_time + 0.01
                     self._overlay_type = "notification"
-                    time.sleep(UPDATE_INTERVAL)
                     continue
 
                 # --- Öncelik 2: Ses değişikliği ---

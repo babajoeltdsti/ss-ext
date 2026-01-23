@@ -135,3 +135,7 @@ Bu proje açık kaynaklıdır.
 ---
 
 **SS-EXT V2.1** | Yapimci: **OMERBABACO**
+
+---
+
+Not: E-posta şifreleri ve sunucu bilgileri gibi hassas verileri repoya koymayın. Kurulum sırasında `kur.bat` bu bilgileri sizden isteyip Windows kullanıcı ortam değişkeni (`setx`) olarak kaydeder. Daha güvenli kullanım için GitHub'da `Secrets` veya dış bir gizli depo (ör. Vault) kullanın.

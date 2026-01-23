@@ -35,18 +35,39 @@ AUTO_UPDATE_ENABLED = True
 UPDATE_INTERVAL = 0.2
 
 # ===== E-POSTA BİLDİRİM AYARLARI =====
-# E-posta bilgileri (ortam değişkenlerinden alınır)
-EMAIL_ADDRESS = os.environ.get("SSEXT_EMAIL_ADDRESS", "info@itsathena.xyz")
-EMAIL_PASSWORD = os.environ.get("SSEXT_EMAIL_PASSWORD", "admn123o@")  # Ortam değişkeninden al
-IMAP_SERVER = os.environ.get("SSEXT_IMAP_SERVER", "mail.itsathena.xyz")
+# E-posta bilgileri yalnızca ortam değişkenlerinden alınır.
+# Güvenlik nedeniyle bu dosyaya hassas bilgiler koymayın.
+# Kurulum sırasında `kur.bat` bu değerleri kullanıcıdan isteyip
+# Windows ortam değişkeni olarak ayarlayacaktır.
+EMAIL_ADDRESS = os.environ.get("SSEXT_EMAIL_ADDRESS", "")
+EMAIL_PASSWORD = os.environ.get("SSEXT_EMAIL_PASSWORD", "")
+# IMAP sunucu (gelen)
+IMAP_SERVER = os.environ.get("SSEXT_IMAP_SERVER", "")
 IMAP_PORT = int(os.environ.get("SSEXT_IMAP_PORT", "993"))
 IMAP_SSL = os.environ.get("SSEXT_IMAP_SSL", "True").lower() == "true"
+
+# SMTP sunucu (giden) - opsiyonel, bazı özellikler için kullanılabilir
+SMTP_SERVER = os.environ.get("SSEXT_SMTP_SERVER", "")
+SMTP_PORT = int(os.environ.get("SSEXT_SMTP_PORT", "587"))
+SMTP_STARTTLS = os.environ.get("SSEXT_SMTP_STARTTLS", "True").lower() == "true"
+
 # E-posta kontrol aralığı (saniye)
 EMAIL_CHECK_INTERVAL = int(os.environ.get("SSEXT_EMAIL_CHECK_INTERVAL", "30"))
 # E-posta bildirimi gösterim süresi (saniye)
 EMAIL_DISPLAY_DURATION = int(os.environ.get("SSEXT_EMAIL_DISPLAY_DURATION", "10"))
 # E-posta bildirimi aktif/pasif
 EMAIL_NOTIFICATION_ENABLED = os.environ.get("SSEXT_EMAIL_ENABLED", "True").lower() == "true"
+EMAIL_ADDRESS = os.environ.get("SSEXT_EMAIL_ADDRESS", "")
+EMAIL_PASSWORD = os.environ.get("SSEXT_EMAIL_PASSWORD", "")
+# IMAP sunucu (gelen)
+IMAP_SERVER = os.environ.get("SSEXT_IMAP_SERVER", "")
+IMAP_PORT = int(os.environ.get("SSEXT_IMAP_PORT", "993"))
+IMAP_SSL = os.environ.get("SSEXT_IMAP_SSL", "True").lower() == "true"
+
+# SMTP sunucu (giden) - opsiyonel, bazı özellikler için kullanılabilir
+SMTP_SERVER = os.environ.get("SSEXT_SMTP_SERVER", "")
+SMTP_PORT = int(os.environ.get("SSEXT_SMTP_PORT", "587"))
+SMTP_STARTTLS = os.environ.get("SSEXT_SMTP_STARTTLS", "True").lower() == "true"
 
 
 # coreProps.json konumu (sadece Windows)
