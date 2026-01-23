@@ -622,9 +622,12 @@ class SpotifyMonitor:
                         now = time.time()
                         min_advance_ms = 400  # küçük artışları yoksay (ms)
 
+                        # Eğer progress geriye sarma yaptıysa (seek backward), bunu gerçek değişiklik olarak kabul et
+                        backward_threshold_ms = 1000
                         if (
                             self._last_progress_ms is None
                             or progress_ms > self._last_progress_ms + min_advance_ms
+                            or progress_ms < self._last_progress_ms - backward_threshold_ms
                         ):
                             # Gerçek ilerleme kabul edilsin
                             progress_percent = (

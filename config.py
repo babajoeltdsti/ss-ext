@@ -81,7 +81,7 @@ def get_core_props_path():
 ICONS = {
     "none": 0,
     "clock": 15,
-    "music": 34,
+    "music": 30,
     "email": 18,      # @ Symbol - e-posta bildirimleri için
     "message": 20,    # Talking - mesajlaşma bildirimleri için
 }
