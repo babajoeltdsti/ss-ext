@@ -622,8 +622,18 @@ class SpotifyMonitor:
                         now = time.time()
                         min_advance_ms = 400  # küçük artışları yoksay (ms)
 
-                        # Eğer progress geriye sarma yaptıysa (seek backward), bunu gerçek değişiklik olarak kabul et
+                        # Eğer progress geriye küçük bir miktar geri geldiyse ve oynatma devam ediyorsa,
+                        # bu API dalgalanmasını yoksayarak mevcut cache değerini koru.
                         backward_threshold_ms = 1000
+                        if (
+                            self._last_progress_ms is not None
+                            and is_playing
+                            and progress_ms < self._last_progress_ms
+                            and (self._last_progress_ms - progress_ms) < backward_threshold_ms
+                        ):
+                            # Çok küçük geri sıçramaları yoksay
+                            progress_ms = self._last_progress_ms
+
                         if (
                             self._last_progress_ms is None
                             or progress_ms > self._last_progress_ms + min_advance_ms
@@ -640,12 +650,23 @@ class SpotifyMonitor:
                             self._is_playing = is_playing
                             self._last_update_time = now
 
+                            # Hesaplanan saniye değerinde küçük salınımları engellemek
+                            # için ek bir gösterim-histerezisi uygula. Eğer yeni gösterge
+                            # bir önceki göstergeye göre çok az geriye gidiyorsa (örn. <2s),
+                            # önceki göstergeyi koru — bu, 32-33-32-33 türü titremeleri engeller.
+                            disp_sec = progress_ms // 1000
+                            prev_disp = getattr(self, "_last_display_sec", None)
+                            if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
+                                disp_sec = prev_disp
+                            self._last_display_sec = disp_sec
+                            progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
+
                             return {
                                 "progress_ms": progress_ms,
                                 "duration_ms": duration_ms,
                                 "progress_percent": progress_percent,
                                 "is_playing": is_playing,
-                                "progress_str": self._format_time(progress_ms),
+                                "progress_str": progress_str,
                                 "duration_str": self._format_time(duration_ms),
                                 "estimated": False,
                             }
@@ -668,12 +689,19 @@ class SpotifyMonitor:
                             self._is_playing = is_playing
                             self._last_update_time = now
 
+                            disp_sec = est_progress // 1000
+                            prev_disp = getattr(self, "_last_display_sec", None)
+                            if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
+                                disp_sec = prev_disp
+                            self._last_display_sec = disp_sec
+                            progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
+
                             return {
                                 "progress_ms": est_progress,
                                 "duration_ms": duration_ms,
                                 "progress_percent": progress_percent,
                                 "is_playing": is_playing,
-                                "progress_str": self._format_time(est_progress),
+                                "progress_str": progress_str,
                                 "duration_str": self._format_time(duration_ms),
                                 "estimated": True,
                             }
@@ -702,12 +730,19 @@ class SpotifyMonitor:
             self._last_progress_ms = est_progress
             self._last_update_time = time.time()
 
+            disp_sec = est_progress // 1000
+            prev_disp = getattr(self, "_last_display_sec", None)
+            if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
+                disp_sec = prev_disp
+            self._last_display_sec = disp_sec
+            progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
+
             return {
                 "progress_ms": est_progress,
                 "duration_ms": self._last_duration_ms,
                 "progress_percent": progress_percent,
                 "is_playing": True,
-                "progress_str": self._format_time(est_progress),
+                "progress_str": progress_str,
                 "duration_str": self._format_time(self._last_duration_ms),
                 "estimated": True,
             }
