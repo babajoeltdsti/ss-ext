@@ -1,6 +1,6 @@
 """
-GG-EXT Otomatik Güncelleme Modülü
-GitHub'dan yeni sürüm kontrolü ve otomatik güncelleme
+SS-EXT Otomatik Guncelleme Modulu
+GitHub'dan yeni surum kontrolu ve otomatik guncelleme
 """
 
 import json
@@ -30,7 +30,7 @@ class AutoUpdater:
         self.session = requests.Session()
         self.session.headers.update({
             "Accept": "application/vnd.github.v3+json",
-            "User-Agent": f"GG-EXT/{VERSION}"
+            "User-Agent": f"SS-EXT/{VERSION}"
         })
 
     def _show_oled(self, line1: str, line2: str = ""):
@@ -186,8 +186,8 @@ class AutoUpdater:
             if progress_callback:
                 progress_callback(30)
 
-            # GitHub zipball'da dosyalar bir alt klasörde olur
-            # Örn: OMERBABACO-GG-EXT-abc123/
+            # GitHub zipball'da dosyalar bir alt klasorde olur
+            # Orn: babajoeltdsti-ss-ext-abc123/
             extracted_contents = os.listdir(extract_dir)
             if len(extracted_contents) == 1 and os.path.isdir(os.path.join(extract_dir, extracted_contents[0])):
                 source_dir = os.path.join(extract_dir, extracted_contents[0])

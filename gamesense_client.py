@@ -114,10 +114,19 @@ class GameSenseClient:
             ),
             (
                 "NOTIFICATION",
-                ICONS["none"],
+                ICONS["message"],
                 [
                     {"has-text": True, "context-frame-key": "app", "bold": True},
                     {"has-text": True, "context-frame-key": "message"},
+                ],
+            ),
+            # E-posta bildirimi handler'ı
+            (
+                "EMAIL_NOTIFICATION",
+                ICONS["email"],
+                [
+                    {"has-text": True, "context-frame-key": "subject", "bold": True},
+                    {"has-text": True, "context-frame-key": "sender"},
                 ],
             ),
             # Güncelleme mesajı handler'ı
@@ -176,11 +185,11 @@ class GameSenseClient:
         return self._post("game_event", data) is not None
 
     def play_intro(self):
-        """GG-EXT Intro"""
+        """SS-EXT Intro"""
         from config import VERSION_DISPLAY
 
         print("\n" + "=" * 35)
-        print(f"       G G - E X T   {VERSION_DISPLAY}")
+        print(f"       S S - E X T   {VERSION_DISPLAY}")
         print("=" * 35 + "\n")
 
         for frame in INTRO_TEXT_FRAMES:
@@ -188,7 +197,7 @@ class GameSenseClient:
             time.sleep(frame["duration"] / 1000.0)
 
     def play_outro(self):
-        """GG-EXT Kapanış Animasyonu"""
+        """SS-EXT Kapanis Animasyonu"""
         from intro_animation import OUTRO_TEXT_FRAMES
 
         for frame in OUTRO_TEXT_FRAMES:
@@ -250,12 +259,26 @@ class GameSenseClient:
         return self.send_event("VOLUME", {"title": title, "level": level})
 
     def send_notification(self, app: str, message: str = "Bildirim") -> bool:
-        """Bildirim göster"""
+        """Bildirim göster (mesajlaşma uygulamaları için)"""
         # Metni ortala (16 karakter ekran genişliği)
         app_centered = app.center(16)
         message_centered = message.center(16)
         return self.send_event(
             "NOTIFICATION", {"app": app_centered, "message": message_centered}
+        )
+
+    def send_email_notification(self, subject: str, sender: str) -> bool:
+        """E-posta bildirimi göster"""
+        # Metni ortala (16 karakter ekran genişliği)
+        # Uzun metinleri kısalt
+        if len(subject) > 16:
+            subject = subject[:13] + "..."
+        if len(sender) > 16:
+            sender = sender[:13] + "..."
+        subject_centered = subject.center(16)
+        sender_centered = sender.center(16)
+        return self.send_event(
+            "EMAIL_NOTIFICATION", {"subject": subject_centered, "sender": sender_centered}
         )
 
     def send_update_message(self, title: str, status: str) -> bool:

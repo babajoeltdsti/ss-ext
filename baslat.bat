@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul 2>&1
-title GG-EXT V1.5.3 - Baslat
+title SS-EXT V2.1 - Baslat
 
 :: Windows 10+ ANSI renk destegini aktif et
 reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
@@ -8,7 +8,7 @@ reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
 cls
 echo.
 echo  [96m========================================[0m
-echo  [93m       GG-EXT V1.5.3 - Baslatiliyor[0m
+echo  [93m       SS-EXT V2.1 - Baslatiliyor[0m
 echo  [90m       Yapimci: OMERBABACO[0m
 echo  [96m========================================[0m
 echo.
@@ -34,10 +34,10 @@ if errorlevel 1 (
 echo      [92mOK[0m - Sanal ortam aktif
 
 echo.
-echo  [93m[*][0m  [97mGG-EXT baslatiliyor...[0m
+echo  [93m[*][0m  [97mSS-EXT baslatiliyor...[0m
 python main.py
 
 echo.
-echo  [92m[OK][0m  [97mGG-EXT kapandi.[0m
+echo  [92m[OK][0m  [97mSS-EXT kapandi.[0m
 echo.
 pause

@@ -1,4 +1,4 @@
-# GG-EXT V1.5.3 - SteelSeries OLED Eklentisi
+# SS-EXT V2.1 - SteelSeries OLED Eklentisi
 
 SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen bir GameSense eklentisidir.
 
@@ -37,7 +37,7 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 SteelSeries GameSense SDK, localhost'ta bir REST API sunucusu çalıştırır. Bu eklenti:
 
 1. `coreProps.json` dosyasından GameSense sunucu adresini okur
-2. Uygulamayı GameSense'e kaydeder (`GGEXT` olarak)
+2. Uygulamayı GameSense'e kaydeder (`SSEXT` olarak)
 3. OLED ekran için event handler'ları oluşturur
 4. 200ms aralıklarla sistem bilgilerini günceller
 
@@ -114,11 +114,11 @@ ss-ext/
 
 | Ayar | Varsayılan | Açıklama |
 |------|------------|----------|
-| `GAME_NAME` | `GGEXT` | GameSense'e kaydedilen uygulama adı |
+| `GAME_NAME` | `SSEXT` | GameSense'e kaydedilen uygulama adı |
 | `UPDATE_INTERVAL` | `0.2` | Güncelleme aralığı (saniye) |
 | `AUTO_UPDATE_ENABLED` | `True` | Otomatik güncelleme açık/kapalı |
-| `GITHUB_REPO_OWNER` | `OMERBABACO` | GitHub kullanıcı adı |
-| `GITHUB_REPO_NAME` | `GG-EXT` | GitHub repo adı |
+| `GITHUB_REPO_OWNER` | `babajoeltdsti` | GitHub kullanıcı adı |
+| `GITHUB_REPO_NAME` | `ss-ext` | GitHub repo adı |
 
 ## 📝 Notlar
 
@@ -134,4 +134,4 @@ Bu proje açık kaynaklıdır.
 
 ---
 
-**GG-EXT V1.0** | Yapımcı: **OMERBABACO**
+**SS-EXT V2.1** | Yapimci: **OMERBABACO**

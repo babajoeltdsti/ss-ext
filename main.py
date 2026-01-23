@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GG-EXT - SteelSeries OLED Eklentisi
+SS-EXT - SteelSeries OLED Eklentisi
 """
 import argparse
 import os
@@ -9,9 +9,10 @@ import sys
 import time
 
 from gamesense_client import GameSenseClient
-from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED
+from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED, EMAIL_DISPLAY_DURATION
 from auto_updater import check_and_update
 from system_monitor import (
+    EmailMonitor,
     NotificationMonitor,
     SpotifyMonitor,
     SystemMonitor,
@@ -27,8 +28,8 @@ W = "\u001b[97m"  # white
 D = "\u001b[90m"  # dim
 RESET = "\u001b[0m"
 
-# Debug: set GGEXT_DEBUG=1 in environment to enable per-loop progress logs
-DEBUG_PROGRESS = os.getenv("GGEXT_DEBUG", "0") == "1"
+# Debug: set SSEXT_DEBUG=1 in environment to enable per-loop progress logs
+DEBUG_PROGRESS = os.getenv("SSEXT_DEBUG", "0") == "1"
 
 # Allow --debug flag for Windows users who can't easily set env vars
 parser = argparse.ArgumentParser(add_help=False)
@@ -45,6 +46,7 @@ class GGExt:
         self.spotify = SpotifyMonitor()
         self.volume = VolumeMonitor()
         self.notifications = NotificationMonitor()
+        self.email_monitor = EmailMonitor()
         self.running = False
 
         # Overlay durumları (geçici gösterimler için)
@@ -67,7 +69,7 @@ class GGExt:
 
     def start(self) -> bool:
         print(C + "=" * 40 + RESET)
-        print(f"{Y}    GG-EXT {VERSION_DISPLAY} - SteelSeries OLED{RESET}")
+        print(f"{Y}    SS-EXT {VERSION_DISPLAY} - SteelSeries OLED{RESET}")
         print(C + "=" * 40 + "\n")
 
         if not self.client.discover_server():
@@ -89,6 +91,10 @@ class GGExt:
             except Exception as e:
                 print(f"{D}[!] Güncelleme kontrolü başarısız: {e}{RESET}")
         
+        # E-posta izlemeyi başlat
+        if self.email_monitor.is_enabled():
+            self.email_monitor.start()
+        
         return True
 
     def run(self):
@@ -105,10 +111,28 @@ class GGExt:
         # Overlay süreleri (saniye)
         VOLUME_OVERLAY_DURATION = 2.0
         NOTIFICATION_OVERLAY_DURATION = 3.0
+        EMAIL_OVERLAY_DURATION = float(EMAIL_DISPLAY_DURATION)
 
         while self.running:
             try:
                 current_time = time.time()
+
+                # --- Öncelik 0: E-posta Bildirimleri ---
+                if self.email_monitor.is_enabled():
+                    email_notif = self.email_monitor.get_pending_email()
+                    if email_notif:
+                        print(
+                            f"{Y}[📧]{RESET} {W}Yeni E-posta: {email_notif['sender']} - {email_notif['subject']}{RESET}"
+                        )
+                        self.client.send_email_notification(
+                            email_notif["subject"],
+                            email_notif["sender"],
+                        )
+                        self._overlay_active = True
+                        self._overlay_end_time = current_time + EMAIL_OVERLAY_DURATION
+                        self._overlay_type = "email"
+                        time.sleep(UPDATE_INTERVAL)
+                        continue
 
                 # --- Öncelik 1: Bildirimler ---
                 notification = self.notifications.check_whatsapp_notification_simple()
@@ -224,6 +248,11 @@ class GGExt:
 
         # Kapanış animasyonu
         print(f"\n{Y}[*]{RESET} {W}Kapaniyor...{RESET}")
+        
+        # E-posta izlemeyi durdur
+        if self.email_monitor.is_enabled():
+            self.email_monitor.stop()
+        
         self.client.play_outro()
         print(f"{G}[OK]{RESET} {W}Kapatildi.{RESET}")
 

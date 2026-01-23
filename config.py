@@ -34,6 +34,20 @@ AUTO_UPDATE_ENABLED = True
 # Güncelleme aralığı (saniye) - 0.2 saniye = anlık güncelleme
 UPDATE_INTERVAL = 0.2
 
+# ===== E-POSTA BİLDİRİM AYARLARI =====
+# E-posta bilgileri (ortam değişkenlerinden alınır)
+EMAIL_ADDRESS = os.environ.get("SSEXT_EMAIL_ADDRESS", "info@itsathena.xyz")
+EMAIL_PASSWORD = os.environ.get("SSEXT_EMAIL_PASSWORD", "admn123o@")  # Ortam değişkeninden al
+IMAP_SERVER = os.environ.get("SSEXT_IMAP_SERVER", "mail.itsathena.xyz")
+IMAP_PORT = int(os.environ.get("SSEXT_IMAP_PORT", "993"))
+IMAP_SSL = os.environ.get("SSEXT_IMAP_SSL", "True").lower() == "true"
+# E-posta kontrol aralığı (saniye)
+EMAIL_CHECK_INTERVAL = int(os.environ.get("SSEXT_EMAIL_CHECK_INTERVAL", "30"))
+# E-posta bildirimi gösterim süresi (saniye)
+EMAIL_DISPLAY_DURATION = int(os.environ.get("SSEXT_EMAIL_DISPLAY_DURATION", "10"))
+# E-posta bildirimi aktif/pasif
+EMAIL_NOTIFICATION_ENABLED = os.environ.get("SSEXT_EMAIL_ENABLED", "True").lower() == "true"
+
 
 # coreProps.json konumu (sadece Windows)
 def get_core_props_path():
@@ -46,8 +60,11 @@ def get_core_props_path():
 
 
 # İkon ID'leri (SteelSeries GameSense)
+# Tam liste: https://github.com/SteelSeries/gamesense-sdk/blob/main/doc/api/event-icons.md
 ICONS = {
     "none": 0,
     "clock": 15,
     "music": 34,
+    "email": 18,      # @ Symbol - e-posta bildirimleri için
+    "message": 20,    # Talking - mesajlaşma bildirimleri için
 }

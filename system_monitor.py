@@ -1,11 +1,216 @@
 """
-Sistem Monitörü - Saat, Spotify, Volume ve Bildirimler
+Sistem Monitörü - Saat, Spotify, Volume, Bildirimler ve E-posta
 """
 
+import imaplib
+import email
+from email.header import decode_header
 import subprocess
+import threading
 import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
+
+
+class EmailMonitor:
+    """IMAP e-posta izleyici - Yeni e-posta bildirimleri için"""
+
+    def __init__(self):
+        self._last_uid: Optional[str] = None
+        self._pending_emails: List[Dict[str, str]] = []
+        self._lock = threading.Lock()
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._initialized = False
+        self._init_email()
+
+    def _init_email(self):
+        """E-posta ayarlarını yükle"""
+        try:
+            from config import (
+                EMAIL_ADDRESS,
+                EMAIL_PASSWORD,
+                IMAP_SERVER,
+                IMAP_PORT,
+                IMAP_SSL,
+                EMAIL_CHECK_INTERVAL,
+                EMAIL_NOTIFICATION_ENABLED,
+            )
+
+            self._email_address = EMAIL_ADDRESS
+            self._email_password = EMAIL_PASSWORD
+            self._imap_server = IMAP_SERVER
+            self._imap_port = IMAP_PORT
+            self._use_ssl = IMAP_SSL
+            self._check_interval = EMAIL_CHECK_INTERVAL
+            self._enabled = EMAIL_NOTIFICATION_ENABLED
+
+            if not self._email_password:
+                print("[!] E-posta sifresi ayarlanmamis (SSEXT_EMAIL_PASSWORD)")
+                print("    E-posta bildirimleri devre disi")
+                self._enabled = False
+                return
+
+            if self._enabled:
+                self._initialized = True
+                print(f"[OK] E-posta izleme hazir: {self._email_address}")
+            else:
+                print("[!] E-posta bildirimleri devre disi")
+
+        except ImportError as e:
+            print(f"[!] E-posta ayarlari yuklenemedi: {e}")
+            self._enabled = False
+        except Exception as e:
+            print(f"[!] E-posta baslatilamadi: {e}")
+            self._enabled = False
+
+    def start(self):
+        """E-posta izleme thread'ini başlat"""
+        if not self._initialized or not self._enabled:
+            return
+
+        self._running = True
+        self._thread = threading.Thread(target=self._check_loop, daemon=True)
+        self._thread.start()
+        print("[OK] E-posta izleme aktif")
+
+    def stop(self):
+        """E-posta izleme thread'ini durdur"""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=5)
+
+    def _check_loop(self):
+        """Arka planda e-posta kontrol döngüsü"""
+        # İlk başta mevcut son e-postayı kaydet (bildirim gösterme)
+        self._update_last_uid()
+
+        while self._running:
+            try:
+                self._check_new_emails()
+            except Exception as e:
+                print(f"[!] E-posta kontrol hatasi: {e}")
+
+            # Belirtilen aralıkta bekle
+            for _ in range(self._check_interval):
+                if not self._running:
+                    break
+                time.sleep(1)
+
+    def _update_last_uid(self):
+        """Mevcut son e-posta UID'sini güncelle"""
+        try:
+            if self._use_ssl:
+                mail = imaplib.IMAP4_SSL(self._imap_server, self._imap_port)
+            else:
+                mail = imaplib.IMAP4(self._imap_server, self._imap_port)
+
+            mail.login(self._email_address, self._email_password)
+            mail.select("INBOX", readonly=True)
+
+            # Son e-postayı al
+            status, messages = mail.search(None, "ALL")
+            if status == "OK" and messages[0]:
+                mail_ids = messages[0].split()
+                if mail_ids:
+                    self._last_uid = mail_ids[-1].decode()
+
+            mail.logout()
+        except Exception as e:
+            print(f"[!] Son e-posta UID alinamadi: {e}")
+
+    def _decode_mime_header(self, header: str) -> str:
+        """MIME kodlu başlığı decode et"""
+        if not header:
+            return ""
+        
+        decoded_parts = decode_header(header)
+        result = []
+        for part, encoding in decoded_parts:
+            if isinstance(part, bytes):
+                try:
+                    result.append(part.decode(encoding or 'utf-8', errors='replace'))
+                except Exception:
+                    result.append(part.decode('utf-8', errors='replace'))
+            else:
+                result.append(part)
+        return ''.join(result)
+
+    def _check_new_emails(self):
+        """Yeni e-postaları kontrol et"""
+        try:
+            if self._use_ssl:
+                mail = imaplib.IMAP4_SSL(self._imap_server, self._imap_port)
+            else:
+                mail = imaplib.IMAP4(self._imap_server, self._imap_port)
+
+            mail.login(self._email_address, self._email_password)
+            mail.select("INBOX", readonly=True)
+
+            # Okunmamış e-postaları ara
+            status, messages = mail.search(None, "UNSEEN")
+            if status != "OK":
+                mail.logout()
+                return
+
+            mail_ids = messages[0].split()
+            if not mail_ids:
+                mail.logout()
+                return
+
+            # Son bilinen UID'den sonraki e-postaları işle
+            for mail_id in mail_ids:
+                uid = mail_id.decode()
+                
+                # Daha önce işlenmişse atla
+                if self._last_uid and int(uid) <= int(self._last_uid):
+                    continue
+
+                # E-posta detaylarını al
+                status, msg_data = mail.fetch(mail_id, "(RFC822.HEADER)")
+                if status != "OK":
+                    continue
+
+                for response_part in msg_data:
+                    if isinstance(response_part, tuple):
+                        msg = email.message_from_bytes(response_part[1])
+                        
+                        # Konu ve göndereni al
+                        subject = self._decode_mime_header(msg.get("Subject", ""))
+                        from_header = self._decode_mime_header(msg.get("From", ""))
+                        
+                        # Gönderen adını parse et
+                        if "<" in from_header:
+                            sender = from_header.split("<")[0].strip().strip('"')
+                        else:
+                            sender = from_header.split("@")[0] if "@" in from_header else from_header
+
+                        # Bildirimi kuyruğa ekle
+                        with self._lock:
+                            self._pending_emails.append({
+                                "subject": subject or "Konu Yok",
+                                "sender": sender or "Bilinmeyen"
+                            })
+
+                        self._last_uid = uid
+
+            mail.logout()
+
+        except imaplib.IMAP4.error as e:
+            print(f"[!] IMAP hatasi: {e}")
+        except Exception as e:
+            print(f"[!] E-posta kontrol hatasi: {e}")
+
+    def get_pending_email(self) -> Optional[Dict[str, str]]:
+        """Bekleyen e-posta bildirimini al (varsa)"""
+        with self._lock:
+            if self._pending_emails:
+                return self._pending_emails.pop(0)
+        return None
+
+    def is_enabled(self) -> bool:
+        """E-posta bildirimleri aktif mi?"""
+        return self._enabled and self._initialized
 
 
 class VolumeMonitor:
