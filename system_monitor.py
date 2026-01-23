@@ -9,6 +9,7 @@ import subprocess
 import threading
 import unicodedata
 import time
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, TYPE_CHECKING
 
@@ -631,6 +632,12 @@ class SpotifyMonitor:
         self._is_playing: bool = False
         self._init_media_session()
 
+        # Smoothing/internal state for progress stabilization
+        self._smoothed_progress_ms: Optional[float] = None
+        self._backward_candidate: Optional[float] = None
+        self._backward_count: int = 0
+        self._last_display_sec: Optional[int] = None
+
     def _init_media_session(self):
         """Windows Media Session API'yi başlat (progress için)"""
         try:
@@ -681,6 +688,11 @@ class SpotifyMonitor:
         if self._session_manager is None:
             try_estimate = True
 
+        # Debug flag (çevre değişkeni ile kontrol edilir)
+        DBG = os.getenv("SSEXT_DEBUG", "0") in ("1", "True", "true")
+        if DBG:
+            print(f"[DBG] get_progress_info start: try_estimate={try_estimate} _last_progress_ms={getattr(self,'_last_progress_ms',None)} _smoothed={getattr(self,'_smoothed_progress_ms',None)} _is_playing={getattr(self,'_is_playing',None)}")
+
         try:
             if not try_estimate:
                 session = self._session_manager.get_current_session()
@@ -716,7 +728,12 @@ class SpotifyMonitor:
 
                         # Zaman ve bazı eşikler
                         now = time.time()
-                        elapsed_ms = int((now - getattr(self, "_last_update_time", now)) * 1000)
+                        # Eğer _last_update_time unset veya sıfırsa elapsed=0 (başlangıçta huge epoch farkı olmasın)
+                        last_up = getattr(self, "_last_update_time", None)
+                        if not last_up or last_up <= 0:
+                            elapsed_ms = 0
+                        else:
+                            elapsed_ms = int((now - last_up) * 1000)
                         # küçük dalgalanmaları yoksayacak, beklenen artıştan daha az geri
                         small_back_ms = 1500
                         # büyük seek'leri kabul etmek için eşik
@@ -725,23 +742,76 @@ class SpotifyMonitor:
                         # Başlangıçta smoothed yoksa kur
                         if not hasattr(self, "_smoothed_progress_ms") or self._smoothed_progress_ms is None:
                             self._smoothed_progress_ms = float(progress_ms)
+                            # İlk init'te last_update_time'ı set et ki predicted huge olmasın
+                            self._last_update_time = now
 
                         # Tahmin: önceki smooth + geçen süre (yalnızca oynuyorsa)
                         predicted = self._smoothed_progress_ms + (elapsed_ms if getattr(self, "_is_playing", False) else 0)
 
                         raw = float(progress_ms)
 
-                        # Eğer küçük bir geri sıçrama ise ve oynatılıyorsa yok say
-                        if is_playing and raw < predicted and (predicted - raw) < small_back_ms:
-                            raw = predicted
+                        # Eğer oynatılıyorsa geri sıçramaları değerlendirelim
+                        if is_playing:
+                            if raw < predicted:
+                                diff = predicted - raw
 
-                        # Eğer çok büyük ileri sıçrama varsa (seek), kabul et
+                                # Çok küçük geri sıçramaları yoksay
+                                if diff < small_back_ms:
+                                    if DBG:
+                                        print(f"[DBG] small backward jitter ignored: raw={raw} predicted={predicted} diff={diff}")
+                                    raw = predicted
+                                    self._backward_candidate = None
+                                    self._backward_count = 0
+                                else:
+                                    # Magnitude-based required confirmations: büyük düşüşler daha fazla doğrulama ister
+                                    pct_drop = (diff / predicted) if predicted > 0 else 0.0
+                                    if pct_drop < 0.20:
+                                        required_backward_count = 3
+                                    elif pct_drop < 0.50:
+                                        required_backward_count = 5
+                                    elif pct_drop < 0.80:
+                                        required_backward_count = 8
+                                    else:
+                                        required_backward_count = 12
+
+                                    # Eğer önceki adayla yakınsa sayıyı arttır, değilse yeni aday başlat
+                                    prev_candidate = getattr(self, "_backward_candidate", None)
+                                    same_thresh = max(2000.0, predicted * 0.20)
+                                    if prev_candidate is not None and abs(prev_candidate - raw) < same_thresh:
+                                        self._backward_count = getattr(self, "_backward_count", 0) + 1
+                                    else:
+                                        self._backward_count = 1
+                                        self._backward_candidate = raw
+
+                                    if self._backward_count < required_backward_count:
+                                        # henüz emin değiliz, yoksay
+                                        if DBG:
+                                            print(f"[DBG] backward candidate seen: raw={raw} predicted={predicted} count={self._backward_count} required={required_backward_count} pct_drop={pct_drop:.2f}")
+                                        raw = predicted
+                                    else:
+                                        # Kabul ediliyor (tutarlı backward). Ancak ani büyük düşüşlerde
+                                        # tek adımda çok fazla inmesini engellemek için per-tick düşüşe sınırlama uygula
+                                        max_decrease_ms = max(500.0, predicted * 0.25)
+                                        capped_raw = max(raw, predicted - max_decrease_ms)
+                                        if DBG:
+                                            print(f"[DBG] backward accepted after {self._backward_count} reads: raw={raw} predicted={predicted} diff={diff} pct_drop={pct_drop:.2f} capped_raw={capped_raw} max_dec={max_decrease_ms}")
+                                        raw = capped_raw
+                            else:
+                                # artış veya aynı durumda backward adayını sıfırla
+                                self._backward_candidate = None
+                                self._backward_count = 0
+
+                        # Eğer çok büyük ileri sıçrama varsa (seek), hemen kabul et
                         if raw > predicted + big_forward_ms:
+                            if DBG:
+                                print(f"[DBG] big forward seek accepted: raw={raw} predicted={predicted}")
                             smoothed = raw
                         else:
                             # EMA birleştirme: alpha daha yakın takip etsin (duruma göre değiştirilebilir)
-                            alpha = 0.6
+                            alpha = 0.4  # daha yumuşak takip
                             smoothed = predicted * (1.0 - alpha) + raw * alpha
+                            if DBG:
+                                print(f"[DBG] smoothing: raw={raw} predicted={predicted} smoothed={smoothed} alpha={alpha}")
 
                         # Clamp ve güncelle cache
                         smoothed = max(0.0, min(float(duration_ms), smoothed))
@@ -764,6 +834,9 @@ class SpotifyMonitor:
                             if duration_ms > 0
                             else 0
                         )
+
+                        if DBG:
+                            print(f"[DBG] get_progress_info result: raw={progress_ms} smoothed={self._smoothed_progress_ms} disp_sec={disp_sec} estimated=False is_playing={is_playing}")
 
                         return {
                             "progress_ms": int(self._smoothed_progress_ms),
