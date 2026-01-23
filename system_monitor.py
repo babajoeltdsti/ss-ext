@@ -735,7 +735,8 @@ class SpotifyMonitor:
                         else:
                             elapsed_ms = int((now - last_up) * 1000)
                         # küçük dalgalanmaları yoksayacak, beklenen artıştan daha az geri
-                        small_back_ms = 1500
+                        # (loglara göre ~2s-3s civarı sıkça geliyor; eşiği artırıyoruz)
+                        small_back_ms = 3000
                         # büyük seek'leri kabul etmek için eşik
                         big_forward_ms = 5000
 
@@ -808,12 +809,15 @@ class SpotifyMonitor:
                                             "estimated": False,
                                         }
 
-                                    # Magnitude-based required confirmations: büyük düşüşler daha fazla doğrulama ister
+                                    # Magnitude-based required confirmations: daha küçük düşüşler daha dikkatli onay istiyor
                                     pct_drop = (diff / predicted) if predicted > 0 else 0.0
-                                    if pct_drop < 0.20:
-                                        required_backward_count = 3
-                                    elif pct_drop < 0.50:
+                                    # Konservatif ayarlar: çok küçük düşüşlerde daha fazla okuma gerekir
+                                    if pct_drop < 0.05:
                                         required_backward_count = 5
+                                    elif pct_drop < 0.15:
+                                        required_backward_count = 4
+                                    elif pct_drop < 0.40:
+                                        required_backward_count = 6
                                     elif pct_drop < 0.80:
                                         required_backward_count = 8
                                     else:
@@ -821,7 +825,7 @@ class SpotifyMonitor:
 
                                     # Eğer önceki adayla yakınsa sayıyı arttır, değilse yeni aday başlat
                                     prev_candidate = getattr(self, "_backward_candidate", None)
-                                    same_thresh = max(2000.0, predicted * 0.20)
+                                    same_thresh = max(2000.0, predicted * 0.12)
                                     if prev_candidate is not None and abs(prev_candidate - raw) < same_thresh:
                                         self._backward_count = getattr(self, "_backward_count", 0) + 1
                                     else:
@@ -834,9 +838,9 @@ class SpotifyMonitor:
                                             print(f"[DBG] backward candidate seen: raw={raw} predicted={predicted} count={self._backward_count} required={required_backward_count} pct_drop={pct_drop:.2f}")
                                         raw = predicted
                                     else:
-                                        # Kabul ediliyor (tutarlı backward). Ancak ani büyük düşüşlerde
-                                        # tek adımda çok fazla inmesini engellemek için per-tick düşüşe sınırlama uygula
-                                        max_decrease_ms = max(500.0, predicted * 0.25)
+                                        # Kabul ediliyor (tutarlı backward). Ani düşüşün görünür etkisini azaltmak
+                                        # için per-tick düşüşü daha sıkı sınırlayalım (ör. en az 2s veya %12'si)
+                                        max_decrease_ms = max(2000.0, predicted * 0.12)
                                         capped_raw = max(raw, predicted - max_decrease_ms)
                                         if DBG:
                                             print(f"[DBG] backward accepted after {self._backward_count} reads: raw={raw} predicted={predicted} diff={diff} pct_drop={pct_drop:.2f} capped_raw={capped_raw} max_dec={max_decrease_ms}")
