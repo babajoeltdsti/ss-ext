@@ -1,11 +1,11 @@
 @echo off
 setlocal enableextensions enabledelayedexpansion
 chcp 65001 >nul 2>&1
-title SS-EXT V2.1 - Kurulum
+title SS-EXT V2.2.0 - Kurulum
 
 cls
 echo ========================================
-echo   SS-EXT V2.1 - Kurulum
+echo   SS-EXT V2.2.0 - Kurulum
 echo   Yapimci: OMERBABACO
 echo ========================================
 echo.
@@ -86,7 +86,6 @@ if exist ".env" (
 ) else (
     echo .env bulunamadi.
     echo Lutfen [.env.example] dosyasini kopyalayip doldurun ve sonra kur.bat'i yeniden calistirin.
-    echo Ornek: copy .env.example .env
 )
 
 echo.
