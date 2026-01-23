@@ -619,92 +619,66 @@ class SpotifyMonitor:
                         if duration_ms <= 0:
                             return None
 
+                        # Zaman ve bazı eşikler
                         now = time.time()
-                        min_advance_ms = 400  # küçük artışları yoksay (ms)
+                        elapsed_ms = int((now - getattr(self, "_last_update_time", now)) * 1000)
+                        # küçük dalgalanmaları yoksayacak, beklenen artıştan daha az geri
+                        small_back_ms = 1500
+                        # büyük seek'leri kabul etmek için eşik
+                        big_forward_ms = 5000
 
-                        # Eğer progress geriye küçük bir miktar geri geldiyse ve oynatma devam ediyorsa,
-                        # bu API dalgalanmasını yoksayarak mevcut cache değerini koru.
-                        backward_threshold_ms = 1000
-                        if (
-                            self._last_progress_ms is not None
-                            and is_playing
-                            and progress_ms < self._last_progress_ms
-                            and (self._last_progress_ms - progress_ms) < backward_threshold_ms
-                        ):
-                            # Çok küçük geri sıçramaları yoksay
-                            progress_ms = self._last_progress_ms
+                        # Başlangıçta smoothed yoksa kur
+                        if not hasattr(self, "_smoothed_progress_ms") or self._smoothed_progress_ms is None:
+                            self._smoothed_progress_ms = float(progress_ms)
 
-                        if (
-                            self._last_progress_ms is None
-                            or progress_ms > self._last_progress_ms + min_advance_ms
-                            or progress_ms < self._last_progress_ms - backward_threshold_ms
-                        ):
-                            # Gerçek ilerleme kabul edilsin
-                            progress_percent = (
-                                min(100.0, (progress_ms / duration_ms) * 100)
-                                if duration_ms > 0
-                                else 0
-                            )
-                            self._last_progress_ms = progress_ms
-                            self._last_duration_ms = duration_ms
-                            self._is_playing = is_playing
-                            self._last_update_time = now
+                        # Tahmin: önceki smooth + geçen süre (yalnızca oynuyorsa)
+                        predicted = self._smoothed_progress_ms + (elapsed_ms if getattr(self, "_is_playing", False) else 0)
 
-                            # Hesaplanan saniye değerinde küçük salınımları engellemek
-                            # için ek bir gösterim-histerezisi uygula. Eğer yeni gösterge
-                            # bir önceki göstergeye göre çok az geriye gidiyorsa (örn. <2s),
-                            # önceki göstergeyi koru — bu, 32-33-32-33 türü titremeleri engeller.
-                            disp_sec = progress_ms // 1000
-                            prev_disp = getattr(self, "_last_display_sec", None)
-                            if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
-                                disp_sec = prev_disp
-                            self._last_display_sec = disp_sec
-                            progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
+                        raw = float(progress_ms)
 
-                            return {
-                                "progress_ms": progress_ms,
-                                "duration_ms": duration_ms,
-                                "progress_percent": progress_percent,
-                                "is_playing": is_playing,
-                                "progress_str": progress_str,
-                                "duration_str": self._format_time(duration_ms),
-                                "estimated": False,
-                            }
+                        # Eğer küçük bir geri sıçrama ise ve oynatılıyorsa yok say
+                        if is_playing and raw < predicted and (predicted - raw) < small_back_ms:
+                            raw = predicted
+
+                        # Eğer çok büyük ileri sıçrama varsa (seek), kabul et
+                        if raw > predicted + big_forward_ms:
+                            smoothed = raw
                         else:
-                            # API güncellemesi gecikiyorsa bizim cache ve geçen süre ile tahmin hesapla
-                            elapsed = now - getattr(self, "_last_update_time", now)
-                            est_progress = min(
-                                duration_ms,
-                                self._last_progress_ms + int(elapsed * 1000),
-                            )
-                            progress_percent = (
-                                min(100.0, (est_progress / duration_ms) * 100)
-                                if duration_ms > 0
-                                else 0
-                            )
+                            # EMA birleştirme: alpha daha yakın takip etsin (duruma göre değiştirilebilir)
+                            alpha = 0.6
+                            smoothed = predicted * (1.0 - alpha) + raw * alpha
 
-                            # Cache'i tahmini değere göre güncelle
-                            self._last_progress_ms = est_progress
-                            self._last_duration_ms = duration_ms
-                            self._is_playing = is_playing
-                            self._last_update_time = now
+                        # Clamp ve güncelle cache
+                        smoothed = max(0.0, min(float(duration_ms), smoothed))
+                        self._smoothed_progress_ms = smoothed
+                        self._last_progress_ms = int(smoothed)
+                        self._last_duration_ms = duration_ms
+                        self._is_playing = is_playing
+                        self._last_update_time = now
 
-                            disp_sec = est_progress // 1000
-                            prev_disp = getattr(self, "_last_display_sec", None)
-                            if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
-                                disp_sec = prev_disp
-                            self._last_display_sec = disp_sec
-                            progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
+                        # Gösterim için saniye bazlı histerezis (küçük dalgalanmaları engelle)
+                        disp_sec = int(self._smoothed_progress_ms) // 1000
+                        prev_disp = getattr(self, "_last_display_sec", None)
+                        if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
+                            disp_sec = prev_disp
+                        self._last_display_sec = disp_sec
+                        progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
 
-                            return {
-                                "progress_ms": est_progress,
-                                "duration_ms": duration_ms,
-                                "progress_percent": progress_percent,
-                                "is_playing": is_playing,
-                                "progress_str": progress_str,
-                                "duration_str": self._format_time(duration_ms),
-                                "estimated": True,
-                            }
+                        progress_percent = (
+                            min(100.0, (self._smoothed_progress_ms / duration_ms) * 100)
+                            if duration_ms > 0
+                            else 0
+                        )
+
+                        return {
+                            "progress_ms": int(self._smoothed_progress_ms),
+                            "duration_ms": duration_ms,
+                            "progress_percent": progress_percent,
+                            "is_playing": is_playing,
+                            "progress_str": progress_str,
+                            "duration_str": self._format_time(duration_ms),
+                            "estimated": False,
+                        }
         except Exception:
             # Eğer gerçek sorgu başarısız olursa, aşağıda cache üzerinden tahmin denenecek
             try_estimate = True
