@@ -763,6 +763,51 @@ class SpotifyMonitor:
                                     self._backward_candidate = None
                                     self._backward_count = 0
                                 else:
+                                    # Eğer çok büyük bir geri seek varsa anında kabul et (kullanıcı aradı)
+                                    big_backward_ms = 8000
+                                    if diff >= big_backward_ms:
+                                        if DBG:
+                                            print(f"[DBG] big backward seek accepted IMMEDIATE: raw={raw} predicted={predicted} diff={diff}")
+                                        # Kabul et ve hemen uygulayalım (ani geri alma kullanıcı beklentisi)
+                                        smoothed = raw
+
+                                        # Clamp ve güncelle cache
+                                        smoothed = max(0.0, min(float(duration_ms), smoothed))
+                                        self._smoothed_progress_ms = smoothed
+                                        self._last_progress_ms = int(smoothed)
+                                        self._last_duration_ms = duration_ms
+                                        self._is_playing = is_playing
+                                        self._last_update_time = now
+                                        self._backward_candidate = None
+                                        self._backward_count = 0
+
+                                        # Gösterim için saniye bazlı histerezis
+                                        disp_sec = int(self._smoothed_progress_ms) // 1000
+                                        prev_disp = getattr(self, "_last_display_sec", None)
+                                        if prev_disp is not None and disp_sec < prev_disp and (prev_disp - disp_sec) < 2:
+                                            disp_sec = prev_disp
+                                        self._last_display_sec = disp_sec
+                                        progress_str = f"{disp_sec//60}:{disp_sec%60:02d}"
+
+                                        progress_percent = (
+                                            min(100.0, (self._smoothed_progress_ms / duration_ms) * 100)
+                                            if duration_ms > 0
+                                            else 0
+                                        )
+
+                                        if DBG:
+                                            print(f"[DBG] get_progress_info result: raw={progress_ms} smoothed={self._smoothed_progress_ms} disp_sec={disp_sec} estimated=False is_playing={is_playing}")
+
+                                        return {
+                                            "progress_ms": int(self._smoothed_progress_ms),
+                                            "duration_ms": duration_ms,
+                                            "progress_percent": progress_percent,
+                                            "is_playing": is_playing,
+                                            "progress_str": progress_str,
+                                            "duration_str": self._format_time(duration_ms),
+                                            "estimated": False,
+                                        }
+
                                     # Magnitude-based required confirmations: büyük düşüşler daha fazla doğrulama ister
                                     pct_drop = (diff / predicted) if predicted > 0 else 0.0
                                     if pct_drop < 0.20:
