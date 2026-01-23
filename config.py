@@ -16,7 +16,7 @@ if platform.system() != "Windows":
     sys.exit(1)
 
 # ===== SÜRÜM BİLGİSİ (Tek yerden yönetim) =====
-VERSION = "1.5.3"
+VERSION = "2.0"
 VERSION_DISPLAY = f"V{VERSION}"
 
 # Uygulama bilgileri
