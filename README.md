@@ -11,9 +11,6 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 - **Env handling:** `.env` yoksa otomatik olarak `.env.example` okunur; bu sayede örnek konfigürasyonlarla çalıştırmak kolaylaştı.
 - **Debugging:** `--debug` ile çalıştırıldığında `SSEXT_DEBUG=1` olarak ayarlanır ve `get_progress_info` gibi fonksiyonlardan ayrıntılı `[DBG]` logları alınır.
 
-> Not: Repoda ayrı bir "TODO" listesi bulunamadı; varsa taşınmış olabilir. Yukarıdaki changelog son dönemde yapılan ana değişiklikleri özetler.
-
-
 ## 👤 Yapımcı
 
 **OMERBABACO**
@@ -25,7 +22,8 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 - � **Şarkı Progress Bar** - Şarkının ilerleme durumu (süre göstergesi ile)
 - 🔊 **Ses Kontrolü** - Sistem ses seviyesi göstergesi ve mute durumu
 - ✉️ **Bildirim Desteği** - Windows bildirimleri
-- 🔄 **Otomatik Güncelleme** - GitHub'dan otomatik güncelleme kontrolü ve kurulumu
+- � **E-posta İzleme** - IMAP üzerinden yeni e-posta bildirimleri (konfigürasyon SSEXT_EMAIL_*)
+- �🔄 **Otomatik Güncelleme** - GitHub'dan otomatik güncelleme kontrolü ve kurulumu
 
 ## 📋 Gereksinimler
 
