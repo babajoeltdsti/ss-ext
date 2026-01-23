@@ -139,3 +139,7 @@ Bu proje açık kaynaklıdır.
 ---
 
 Not: E-posta şifreleri ve sunucu bilgileri gibi hassas verileri repoya koymayın. Kurulum sırasında `kur.bat` bu bilgileri sizden isteyip Windows kullanıcı ortam değişkeni (`setx`) olarak kaydeder. Daha güvenli kullanım için GitHub'da `Secrets` veya dış bir gizli depo (ör. Vault) kullanın.
+ 
+ Yeni davranış: `kur.bat` şimdi hassas bilgileri doğrudan `.env` dosyasına yazar (lokal). `.env` dosyası `.gitignore` içinde olduğundan repoya itilmeyecektir.
+ 
+ Eğer geçmişte hassas bilgi commitlediyseniz, `scripts/clean_history.sh` scriptini kullanarak geçmişi temizleyebilirsiniz (BFG veya `git-filter-repo` gerektirir). Scripti çalıştırmadan önce README'deki uyarıları okuyun.

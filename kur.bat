@@ -101,19 +101,20 @@ if /i "%USER_EMAIL_CONFIG%"=="E" (
     set /p SSEXT_SMTP_STARTTLS_INPUT="SMTP STARTTLS? (True/False) (varsayılan True): "
     if "%SSEXT_SMTP_STARTTLS_INPUT%"=="" set SSEXT_SMTP_STARTTLS_INPUT=True
 
-    echo Ayarlar kullanici ortam değişkeni olarak kaydediliyor...
-    setx SSEXT_EMAIL_ADDRESS "%SSEXT_EMAIL_ADDRESS_INPUT%"
-    setx SSEXT_EMAIL_PASSWORD "%SSEXT_EMAIL_PASSWORD_INPUT%"
-    setx SSEXT_IMAP_SERVER "%SSEXT_IMAP_SERVER_INPUT%"
-    setx SSEXT_IMAP_PORT "%SSEXT_IMAP_PORT_INPUT%"
-    setx SSEXT_IMAP_SSL "%SSEXT_IMAP_SSL_INPUT%"
+    echo Ayarlar .env dosyasina yaziliyor (.env savunmasi: .gitignore icinde olmalidir)...
+    >.env echo # SS-EXT configuration file
+    >>.env echo SSEXT_EMAIL_ADDRESS=%SSEXT_EMAIL_ADDRESS_INPUT%
+    >>.env echo SSEXT_EMAIL_PASSWORD=%SSEXT_EMAIL_PASSWORD_INPUT%
+    >>.env echo SSEXT_IMAP_SERVER=%SSEXT_IMAP_SERVER_INPUT%
+    >>.env echo SSEXT_IMAP_PORT=%SSEXT_IMAP_PORT_INPUT%
+    >>.env echo SSEXT_IMAP_SSL=%SSEXT_IMAP_SSL_INPUT%
     if not "%SSEXT_SMTP_SERVER_INPUT%"=="" (
-        setx SSEXT_SMTP_SERVER "%SSEXT_SMTP_SERVER_INPUT%"
-        setx SSEXT_SMTP_PORT "%SSEXT_SMTP_PORT_INPUT%"
-        setx SSEXT_SMTP_STARTTLS "%SSEXT_SMTP_STARTTLS_INPUT%"
+        >>.env echo SSEXT_SMTP_SERVER=%SSEXT_SMTP_SERVER_INPUT%
+        >>.env echo SSEXT_SMTP_PORT=%SSEXT_SMTP_PORT_INPUT%
+        >>.env echo SSEXT_SMTP_STARTTLS=%SSEXT_SMTP_STARTTLS_INPUT%
     )
 
-    echo Ortam değişkenleri kaydedildi. Oturum değişiklikleri için oturumu kapatıp açmanız gerekebilir.
+    echo .env dosyasi olusturuldu ve yerel olarak kaydedildi.
 )
 
 echo.
