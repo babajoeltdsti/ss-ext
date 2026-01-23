@@ -246,8 +246,10 @@ class GameSenseClient:
         time_display = f"{current_time}/{total_time}"
 
         combined = f"{title} - {artist}"
-        if len(combined) <= max_line_len:
-            title_line = combined
+        # Eğer combined uzunluğu tam olarak ekrana sığıyorsa bile kayan yazı olsun;
+        # sadece daha kısa metinleri ortala.
+        if len(combined) < max_line_len:
+            title_line = combined.center(max_line_len)
         else:
             scroll_text = combined + "    "
             text_len = len(scroll_text)
