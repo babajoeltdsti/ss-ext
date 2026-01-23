@@ -272,38 +272,9 @@ class VolumeMonitor:
             level = self._endpoint_volume.GetMasterVolumeLevelScalar()
             return int(level * 100)
         except Exception:
-            return None
+            pass
 
-    def is_muted(self) -> Optional[bool]:
-        """Sesin kapalı olup olmadığını döndürür"""
-        if self._endpoint_volume is None:
-            return None
-
-        if self._endpoint_volume == "winmm":
-            return False  # winmm mute bilgisi vermiyor
-
-        try:
-            return bool(self._endpoint_volume.GetMute())
-        except Exception:
-            return None
-
-    def _get_volume_winmm(self) -> Optional[int]:
-        """Windows Mixer API ile ses seviyesi al (fallback)"""
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            winmm = ctypes.windll.winmm
-            volume = wintypes.DWORD()
-            result = winmm.waveOutGetVolume(0, ctypes.byref(volume))
-
-            if result == 0:
-                left = volume.value & 0xFFFF
-                right = (volume.value >> 16) & 0xFFFF
-                avg = (left + right) // 2
-                return int(avg / 65535 * 100)
-        except Exception:
-
+        return None
         # Yedek: PowerShell (güçlü decoding ve Unicode normalizasyonu uyguluyoruz)
         try:
             cmd = 'powershell -NoProfile -Command "(Get-Process Spotify -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle}).MainWindowTitle"'
@@ -757,6 +728,13 @@ class SpotifyMonitor:
             return None
 
         title = title.strip()
+        # Temizlik ve normalize et; bazı durumlarda pencereden alınan başlık
+        # bozuk karakterler içerebiliyor, normalize ederek tutarlı hale getirelim.
+        try:
+            title = title.replace("\x00", "").replace("\r", " ").replace("\n", " ").strip()
+            title = unicodedata.normalize("NFC", title)
+        except Exception:
+            pass
 
         # Bunlar çalmıyor demek
         if not title or title in ["Spotify", "Spotify Free", "Spotify Premium"]:
@@ -849,6 +827,12 @@ class SpotifyMonitor:
             win32gui.EnumWindows(enum_callback, None)
 
             if result_title:
+                # Temizle ve Unicode normalize et (garbled/encoding problemlerini azaltmak için)
+                try:
+                    result_title = result_title.replace("\x00", "").replace("\r", " ").replace("\n", " ").strip()
+                    result_title = unicodedata.normalize("NFC", result_title)
+                except Exception:
+                    pass
                 return result_title
         except ImportError:
             pass
