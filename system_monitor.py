@@ -303,20 +303,38 @@ class VolumeMonitor:
                 avg = (left + right) // 2
                 return int(avg / 65535 * 100)
         except Exception:
+
+        # Yedek: PowerShell (güçlü decoding ve Unicode normalizasyonu uyguluyoruz)
+        try:
+            cmd = 'powershell -NoProfile -Command "(Get-Process Spotify -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle}).MainWindowTitle"'
+            result = subprocess.run(cmd, capture_output=True, shell=True, timeout=1)
+            raw = result.stdout
+            title = ""
+            if raw:
+                if isinstance(raw, (bytes, bytearray)):
+                    # Denenecek encoding'ler sırasıyla
+                    for enc in ("utf-8", "utf-16-le", "utf-16", "cp1254", "cp1252", "latin-1"):
+                        try:
+                            title = raw.decode(enc, errors="strict").strip()
+                            if title:
+                                break
+                        except Exception:
+                            continue
+                    if not title:
+                        title = raw.decode("utf-8", errors="replace").strip()
+                else:
+                    title = str(raw).strip()
+
+            if title:
+                # Temizlik ve normalize
+                title = title.replace("\x00", "").replace("\r", " ").replace("\n", " ").strip()
+                title = unicodedata.normalize("NFC", title)
+                if title:
+                    return title
+        except Exception:
             pass
+
         return None
-
-    def check_volume_change(self) -> Optional[Dict[str, any]]:
-        """
-        Ses değişikliği kontrolü.
-        Değişiklik varsa {'volume': int, 'muted': bool} döndürür.
-        Yoksa None döndürür.
-        """
-        current_volume = self.get_volume()
-        current_mute = self.is_muted()
-
-        if current_volume is None:
-            return None
 
         # İlk çalıştırma
         if self._last_volume is None:
