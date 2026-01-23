@@ -2,6 +2,18 @@
 
 SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen bir GameSense eklentisidir.
 
+## 🧾 Changelog (v2.0)
+
+- **Version display:** Uygulama sürümü `V2.0` olarak güncellendi.
+- **Spotify progress smoothing:** Predict+EMA tabanlı smoothing eklendi; küçük geri jitter'lar yoksayılıyor, tutarlı küçük geri düşüşler için onay sayısı, büyük backward seek'ler anında kabul ediliyor. (parametreler: small_back_ms, required confirmations, per-tick cap)
+- **Spotify title handling:** PowerShell decoding ve Unicode normalization iyileştirildi; UI için Spotify başlık genişliği 13 olarak ayarlandı (daha erken kaydırma).
+- **VolumeMonitor:** WinMM fallback ve `check_volume_change` desteği eklendi; pycaw ile uyum geliştirildi.
+- **Env handling:** `.env` yoksa otomatik olarak `.env.example` okunur; bu sayede örnek konfigürasyonlarla çalıştırmak kolaylaştı.
+- **Debugging:** `--debug` ile çalıştırıldığında `SSEXT_DEBUG=1` olarak ayarlanır ve `get_progress_info` gibi fonksiyonlardan ayrıntılı `[DBG]` logları alınır.
+
+> Not: Repoda ayrı bir "TODO" listesi bulunamadı; varsa taşınmış olabilir. Yukarıdaki changelog son dönemde yapılan ana değişiklikleri özetler.
+
+
 ## 👤 Yapımcı
 
 **OMERBABACO**
