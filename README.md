@@ -9,7 +9,7 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 - **Spotify title handling:** PowerShell decoding ve Unicode normalization iyileştirildi; UI için Spotify başlık genişliği 13 olarak ayarlandı (daha erken kaydırma).
 - **VolumeMonitor:** WinMM fallback ve `check_volume_change` desteği eklendi; pycaw ile uyum geliştirildi.
 - **Env handling:** `.env` yoksa otomatik olarak `.env.example` okunur; bu sayede örnek konfigürasyonlarla çalıştırmak kolaylaştı.
-- **Debugging:** `--debug` ile çalıştırıldığında `SSEXT_DEBUG=1` olarak ayarlanır ve `get_progress_info` gibi fonksiyonlardan ayrıntılı `[DBG]` logları alınır
+- **Debugging:** `--debug` ile çalıştırıldığında `SSEXT_DEBUG=1` olarak ayarlanır ve `get_progress_info` gibi fonksiyonlardan ayrıntılı `[DBG]` logları alınır.
 
 ## 👤 Yapımcı
 
