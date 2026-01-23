@@ -1,4 +1,4 @@
-# SS-EXT V2.1 - SteelSeries OLED Eklentisi
+# SS-EXT V2.0 - SteelSeries OLED Eklentisi
 
 SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen bir GameSense eklentisidir.
 
@@ -134,7 +134,7 @@ Bu proje açık kaynaklıdır.
 
 ---
 
-**SS-EXT V2.1** | Yapimci: **OMERBABACO**
+**SS-EXT V2.0** | Yapimci: **OMERBABACO**
 
 ---
 

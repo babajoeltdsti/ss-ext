@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul 2>&1
-title SS-EXT V2.1 - Durdur
+title SS-EXT V2.0 - Durdur
 
 :: Windows 10+ ANSI renk destegini aktif et
 reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
@@ -8,7 +8,7 @@ reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
 cls
 echo.
 echo  [96m========================================[0m
-echo  [93m       SS-EXT V2.1 - Durduruluyor[0m
+echo  [93m       SS-EXT V2.0 - Durduruluyor[0m
 echo  [90m       Yapimci: OMERBABACO[0m
 echo  [96m========================================[0m
 echo.
