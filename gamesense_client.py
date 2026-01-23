@@ -242,7 +242,7 @@ class GameSenseClient:
           Satır 1: "ŞARKI - SANATÇI" (kaydırmalı olabilir)
           Satır 2: "1:23/3:45" (sadece süre)
         """
-        max_line_len = 16
+        max_line_len = 13
         time_display = f"{current_time}/{total_time}"
 
         combined = f"{title} - {artist}"
