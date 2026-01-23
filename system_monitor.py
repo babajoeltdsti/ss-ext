@@ -7,6 +7,7 @@ import email
 from email.header import decode_header
 import subprocess
 import threading
+import unicodedata
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -15,82 +16,87 @@ from typing import Dict, List, Optional
 class EmailMonitor:
     """IMAP e-posta izleyici - Yeni e-posta bildirimleri için"""
 
-        return None
+    def __init__(self):
+        self._last_uid: Optional[str] = None
+        self._pending_emails: List[Dict[str, str]] = []
+        self._lock = threading.Lock()
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._initialized = False
+        self._init_email()
 
-    def _get_volume_winmm(self) -> Optional[int]:
-        """Windows winmm fallback: returns 0-100 or None on failure"""
+    def _init_email(self):
+        """E-posta ayarlarını yükle"""
         try:
-            import ctypes
-            from ctypes import wintypes
-
-            winmm = ctypes.windll.winmm
-            volume = wintypes.DWORD()
-            result = winmm.waveOutGetVolume(0, ctypes.byref(volume))
-
-            if result == 0:
-                left = volume.value & 0xFFFF
-                right = (volume.value >> 16) & 0xFFFF
-                avg = (left + right) // 2
-                return int(avg / 65535 * 100)
-        except Exception:
-            return None
-
-        return None
-
-    def check_volume_change(self) -> Optional[Dict[str, any]]:
-        """Check current volume/mute and return dict on change: {volume, muted}
-
-        Initializes last values on first call.
-        """
-        current_volume = self.get_volume()
-        current_mute = self.is_muted()
-
-        # Eğer değer alınamadıysa hiçbir şey yapma
-        if current_volume is None and current_mute is None:
-            return None
-
-        # İlk çalıştırma: kaydet
-        if self._last_volume is None:
-            self._last_volume = current_volume if current_volume is not None else 0
-            self._last_mute = current_mute if current_mute is not None else False
-            return None
-
-        # Değişiklik kontrolü (2 birim tolerans)
-        volume_changed = (
-            current_volume is not None
-            and abs(current_volume - (self._last_volume or 0)) >= 2
-        )
-        mute_changed = (current_mute is not None and current_mute != self._last_mute)
-
-        if volume_changed or mute_changed:
-            self._last_volume = current_volume if current_volume is not None else self._last_volume
-            self._last_mute = current_mute if current_mute is not None else self._last_mute
-            return {"volume": self._last_volume, "muted": self._last_mute}
-
-        return None
-            # Eğer değer alınamadıysa hiçbir şey yapma
-            if current_volume is None and current_mute is None:
-                return None
-
-            # İlk çalıştırma: kaydet
-            if self._last_volume is None:
-                self._last_volume = current_volume if current_volume is not None else 0
-                self._last_mute = current_mute if current_mute is not None else False
-                return None
-
-            # Değişiklik kontrolü (2 birim tolerans)
-            volume_changed = (
-                current_volume is not None
-                and abs(current_volume - (self._last_volume or 0)) >= 2
+            from config import (
+                EMAIL_ADDRESS,
+                EMAIL_PASSWORD,
+                IMAP_SERVER,
+                IMAP_PORT,
+                IMAP_SSL,
+                EMAIL_CHECK_INTERVAL,
+                EMAIL_NOTIFICATION_ENABLED,
             )
-            mute_changed = (current_mute is not None and current_mute != self._last_mute)
 
-            if volume_changed or mute_changed:
-                self._last_volume = current_volume if current_volume is not None else self._last_volume
-                self._last_mute = current_mute if current_mute is not None else self._last_mute
-                return {"volume": self._last_volume, "muted": self._last_mute}
+            self._email_address = EMAIL_ADDRESS
+            self._email_password = EMAIL_PASSWORD
+            self._imap_server = IMAP_SERVER
+            self._imap_port = IMAP_PORT
+            self._use_ssl = IMAP_SSL
+            self._check_interval = EMAIL_CHECK_INTERVAL
+            self._enabled = EMAIL_NOTIFICATION_ENABLED
 
-            return None
+            if not self._email_password:
+                print("[!] E-posta sifresi ayarlanmamis (SSEXT_EMAIL_PASSWORD)")
+                print("    E-posta bildirimleri devre disi")
+                self._enabled = False
+                return
+
+            if self._enabled:
+                self._initialized = True
+                print(f"[OK] E-posta izleme hazir: {self._email_address}")
+            else:
+                print("[!] E-posta bildirimleri devre disi")
+
+        except ImportError as e:
+            print(f"[!] E-posta ayarlari yuklenemedi: {e}")
+            self._enabled = False
+        except Exception as e:
+            print(f"[!] E-posta baslatilamadi: {e}")
+            self._enabled = False
+
+    def start(self):
+        """E-posta izleme thread'ini başlat"""
+        if not self._initialized or not self._enabled:
+            return
+
+        self._running = True
+        self._thread = threading.Thread(target=self._check_loop, daemon=True)
+        self._thread.start()
+        print("[OK] E-posta izleme aktif")
+
+    def stop(self):
+        """E-posta izleme thread'ini durdur"""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=5)
+
+    def _check_loop(self):
+        """Arka planda e-posta kontrol döngüsü"""
+        # İlk başta mevcut son e-postayı kaydet (bildirim gösterme)
+        self._update_last_uid()
+
+        while self._running:
+            try:
+                self._check_new_emails()
+            except Exception as e:
+                print(f"[!] E-posta kontrol hatasi: {e}")
+
+            # Belirtilen aralıkta bekle
+            for _ in range(self._check_interval):
+                if not self._running:
+                    break
+                time.sleep(1)
         self._update_last_uid()
 
         while self._running:
@@ -235,19 +241,15 @@ class VolumeMonitor:
         try:
             from pycaw.pycaw import AudioUtilities
 
-            # Yeni pycaw API (2024+) - AudioDevice objesi döner
             speakers = AudioUtilities.GetSpeakers()
 
-            # EndpointVolume attribute'u var mı?
             if hasattr(speakers, "EndpointVolume"):
                 self._endpoint_volume = speakers.EndpointVolume
                 print("[OK] Ses izleme aktif (pycaw EndpointVolume)")
                 return
 
-            # Eski API dene
             if hasattr(speakers, "Activate"):
                 from ctypes import POINTER, cast
-
                 from comtypes import CLSCTX_ALL
                 from pycaw.pycaw import IAudioEndpointVolume
 
@@ -258,6 +260,87 @@ class VolumeMonitor:
                 print("[OK] Ses izleme aktif (pycaw Activate)")
                 return
 
+        except ImportError:
+            print("[!] pycaw yüklü değil: pip install pycaw")
+        except Exception as e:
+            print(f"[!] pycaw hatası: {e}")
+
+        # Fallback
+        self._endpoint_volume = "winmm"
+        print("[OK] Ses izleme aktif (winmm fallback)")
+
+    def _get_volume_winmm(self) -> Optional[int]:
+        """Windows Mixer API ile ses seviyesi al (fallback)"""
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            winmm = ctypes.windll.winmm
+            volume = wintypes.DWORD()
+            result = winmm.waveOutGetVolume(0, ctypes.byref(volume))
+
+            if result == 0:
+                left = volume.value & 0xFFFF
+                right = (volume.value >> 16) & 0xFFFF
+                avg = (left + right) // 2
+                return int(avg / 65535 * 100)
+        except Exception:
+            return None
+
+        return None
+
+    def get_volume(self) -> Optional[int]:
+        """Mevcut ses seviyesini yüzde olarak döndürür (0-100)"""
+        if self._endpoint_volume is None:
+            return None
+
+        if self._endpoint_volume == "winmm":
+            return self._get_volume_winmm()
+
+        try:
+            level = self._endpoint_volume.GetMasterVolumeLevelScalar()
+            return int(level * 100)
+        except Exception:
+            return None
+
+    def is_muted(self) -> Optional[bool]:
+        """Sesin kapalı olup olmadığını döndürür"""
+        if self._endpoint_volume is None:
+            return None
+
+        if self._endpoint_volume == "winmm":
+            return False
+
+        try:
+            return bool(self._endpoint_volume.GetMute())
+        except Exception:
+            return None
+
+    def check_volume_change(self) -> Optional[Dict[str, any]]:
+        """Check current volume/mute and return dict on change: {volume, muted}"""
+        current_volume = self.get_volume()
+        current_mute = self.is_muted()
+
+        if current_volume is None and current_mute is None:
+            return None
+
+        if self._last_volume is None:
+            self._last_volume = current_volume if current_volume is not None else 0
+            self._last_mute = current_mute if current_mute is not None else False
+            return None
+
+        volume_changed = (
+            current_volume is not None
+            and abs(current_volume - (self._last_volume or 0)) >= 2
+        )
+        mute_changed = (current_mute is not None and current_mute != self._last_mute)
+
+        if volume_changed or mute_changed:
+            self._last_volume = current_volume if current_volume is not None else self._last_volume
+            self._last_mute = current_mute if current_mute is not None else self._last_mute
+            return {"volume": self._last_volume, "muted": self._last_mute}
+
+        return None
         except ImportError:
             print("[!] pycaw yüklü değil: pip install pycaw")
         except Exception as e:
