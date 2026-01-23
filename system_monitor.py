@@ -293,7 +293,7 @@ class NotificationMonitor:
                 app_name = self._pending_notification
                 self._pending_notification = None
                 self._last_notification_time = current_time
-                return {"app": app_name, "message": "Yeni Bildirim"}
+                return {"app": app_name, "message": "  Yeni Mesaj"}
             else:
                 # Cooldown süresi dolmadı, bildirimi sil
                 self._pending_notification = None

@@ -238,41 +238,48 @@ class GameSenseClient:
     def send_volume(self, volume: int, muted: bool = False) -> bool:
         """Ses seviyesini ekranda göster"""
         if muted:
-            title = "    SESSIZ"
-            level = "     KAPALI"
+            title = "    SESSIZ".center(16)
+            level = "   SES KAPALI".center(16)
         else:
-            title = "  SES SEVIYESI"
+            title = "SES SEVIYESI".center(16)
             # Progress bar oluştur
             bar_len = 8
             filled = int(volume / 100 * bar_len)
             bar = "█" * filled + "░" * (bar_len - filled)
-            level = f"  {bar} %{volume}"
+            level = f"{bar} %{volume}".center(16)
         return self.send_event("VOLUME", {"title": title, "level": level})
 
     def send_notification(self, app: str, message: str = "Bildirim") -> bool:
         """Bildirim göster"""
+        # Metni ortala (16 karakter ekran genişliği)
+        app_centered = app.center(16)
+        message_centered = message.center(16)
         return self.send_event(
-            "NOTIFICATION", {"app": f"    {app}", "message": f"  {message}"}
+            "NOTIFICATION", {"app": app_centered, "message": message_centered}
         )
 
     def send_update_message(self, title: str, status: str) -> bool:
         """Güncelleme mesajı göster (örn: 'Güncelleme Mevcut!')"""
+        # Metni ortala (16 karakter ekran genişliği)
+        title_centered = title.center(16)
+        status_centered = status.center(16)
         return self.send_event(
-            "UPDATE", {"title": f"  {title}", "status": status}
+            "UPDATE", {"title": title_centered, "status": status_centered}
         )
 
     def send_update_progress(self, title: str, progress_bar: str, percent: int) -> bool:
         """
         Güncelleme progress bar göster
         Args:
-            title: Başlık (örn: 'İndiriliyor', 'Kuruluyor')
+            title: Başlık (örn: 'Indiriliyor', 'Kuruluyor')
             progress_bar: Progress bar string'i (örn: '████░░░░')
             percent: Yüzde değeri
         """
-        # Format: "████░░░░ %75"
-        progress_display = f" {progress_bar} %{percent}"
+        # Format: "████░░░░ %75" - ortalanmış
+        title_centered = title.center(16)
+        progress_display = f"{progress_bar} %{percent}".center(16)
         return self.send_event(
-            "UPDATE_PROGRESS", {"title": f"  {title}", "progress": progress_display}
+            "UPDATE_PROGRESS", {"title": title_centered, "progress": progress_display}
         )
 
     def heartbeat(self):
