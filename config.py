@@ -6,25 +6,19 @@ SADECE WINDOWS DESTEKLİ
 import os
 import platform
 import sys
-# Load .env file if present (optional)
+
+# .env dosyasını yükle (opsiyonel)
 try:
     from dotenv import load_dotenv
 
-    # Prefer a real .env file; fall back to .env.example if .env missing so
-    # users who copied the repo from GitHub get sensible defaults.
     if os.path.exists(".env"):
         load_dotenv(".env")
-        print("[OK] Loaded .env")
     elif os.path.exists(".env.example"):
         load_dotenv(".env.example")
-        print("[OK] Loaded .env.example (no .env present)")
     else:
-        # No dotenv files found; try default loader (may pick up env vars)
         load_dotenv()
-        print("[!] No .env or .env.example found; using environment variables only")
-except Exception:
-    # python-dotenv may not be installed during static analysis; that's fine
-    print("[!] python-dotenv not installed; using environment variables only")
+except ImportError:
+    pass  # python-dotenv yüklü değilse sessizce devam et
 
 
 # ===== WINDOWS KONTROLÜ =====

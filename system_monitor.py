@@ -121,19 +121,6 @@ class EmailMonitor:
                 if not self._running:
                     break
                 time.sleep(1)
-        self._update_last_uid()
-
-        while self._running:
-            try:
-                self._check_new_emails()
-            except Exception as e:
-                print(f"[!] E-posta kontrol hatasi: {e}")
-
-            # Belirtilen aralıkta bekle
-            for _ in range(self._check_interval):
-                if not self._running:
-                    break
-                time.sleep(1)
 
     def _update_last_uid(self):
         """Mevcut son e-posta UID'sini güncelle"""
@@ -365,72 +352,6 @@ class VolumeMonitor:
             return {"volume": self._last_volume, "muted": self._last_mute}
 
         return None
-
-    def get_volume(self) -> Optional[int]:
-        """Mevcut ses seviyesini yüzde olarak döndürür (0-100)"""
-        if self._endpoint_volume is None:
-            return None
-
-        if self._endpoint_volume == "winmm":
-            return self._get_volume_winmm()
-
-        try:
-            # pycaw EndpointVolume
-            level = self._endpoint_volume.GetMasterVolumeLevelScalar()
-            return int(level * 100)
-        except Exception:
-            pass
-
-        return None
-        # Yedek: PowerShell (güçlü decoding ve Unicode normalizasyonu uyguluyoruz)
-        try:
-            cmd = 'powershell -NoProfile -Command "(Get-Process Spotify -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle}).MainWindowTitle"'
-            result = subprocess.run(cmd, capture_output=True, shell=True, timeout=1)
-            raw = result.stdout
-            title = ""
-            if raw:
-                if isinstance(raw, (bytes, bytearray)):
-                    # Denenecek encoding'ler sırasıyla
-                    for enc in ("utf-8", "utf-16-le", "utf-16", "cp1254", "cp1252", "latin-1"):
-                        try:
-                            title = raw.decode(enc, errors="strict").strip()
-                            if title:
-                                break
-                        except Exception:
-                            continue
-                    if not title:
-                        title = raw.decode("utf-8", errors="replace").strip()
-                else:
-                    title = str(raw).strip()
-
-            if title:
-                # Temizlik ve normalize
-                title = title.replace("\x00", "").replace("\r", " ").replace("\n", " ").strip()
-                title = unicodedata.normalize("NFC", title)
-                if title:
-                    return title
-        except Exception:
-            pass
-
-        return None
-
-        # İlk çalıştırma
-        if self._last_volume is None:
-            self._last_volume = current_volume
-            self._last_mute = current_mute
-            return None
-
-        # Değişiklik kontrolü (2% tolerans - küçük dalgalanmaları yoksay)
-        volume_changed = abs(current_volume - self._last_volume) >= 2
-        mute_changed = current_mute != self._last_mute
-
-        if volume_changed or mute_changed:
-            self._last_volume = current_volume
-            self._last_mute = current_mute
-            return {"volume": current_volume, "muted": current_mute}
-
-        return None
-
 
 class NotificationMonitor:
     """Windows bildirim izleyici - Pencere başlıklarındaki okunmamış sayısına göre"""
