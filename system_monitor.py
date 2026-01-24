@@ -1001,3 +1001,375 @@ class SpotifyMonitor:
             pass
 
         return None
+
+
+class GameMonitor:
+    """Aktif oyun izleyici - Çalışan oyunları tespit eder ve süre takibi yapar"""
+
+    # Bilinen oyun process isimleri (küçük harf)
+    KNOWN_GAMES = {
+        # FPS / Shooter
+        "valorant.exe": "Valorant",
+        "valorant-win64-shipping.exe": "Valorant",
+        "csgo.exe": "CS:GO",
+        "cs2.exe": "CS2",
+        "overwatch.exe": "Overwatch",
+        "r5apex.exe": "Apex Legends",
+        "fortnite.exe": "Fortnite",
+        "fortniteclient-win64-shipping.exe": "Fortnite",
+        "cod.exe": "Call of Duty",
+        "modernwarfare.exe": "Warzone",
+        "destiny2.exe": "Destiny 2",
+        "rainbowsix.exe": "Rainbow Six",
+        "rainbowsix_vulkan.exe": "Rainbow Six",
+        "pubg.exe": "PUBG",
+        "tslgame.exe": "PUBG",
+        # MOBA / Strategy
+        "leagueclient.exe": "LoL",
+        "league of legends.exe": "LoL",
+        "dota2.exe": "Dota 2",
+        # RPG / Adventure
+        "eldenring.exe": "Elden Ring",
+        "cyberpunk2077.exe": "Cyberpunk",
+        "witcher3.exe": "Witcher 3",
+        "gta5.exe": "GTA V",
+        "gtav.exe": "GTA V",
+        "playgtav.exe": "GTA V",
+        "rdr2.exe": "RDR2",
+        "hogwartslegacy.exe": "Hogwarts",
+        "baldursgate3.exe": "BG3",
+        "bg3.exe": "BG3",
+        "bg3_dx11.exe": "BG3",
+        "starfield.exe": "Starfield",
+        # Racing
+        "forzahorizon5.exe": "Forza H5",
+        "forzahorizon4.exe": "Forza H4",
+        "assettocorsa.exe": "Assetto Corsa",
+        "acs.exe": "Assetto Corsa",
+        # Survival / Sandbox
+        "minecraft.exe": "Minecraft",
+        "javaw.exe": "Minecraft",
+        "rustclient.exe": "Rust",
+        "terraria.exe": "Terraria",
+        # Sports
+        "fc24.exe": "EA FC 24",
+        "fc25.exe": "EA FC 25",
+        "fifa24.exe": "EA FC 24",
+        "nba2k24.exe": "NBA 2K24",
+        "nba2k25.exe": "NBA 2K25",
+        # Other
+        "rocketleague.exe": "Rocket League",
+        "amongus.exe": "Among Us",
+        "phasmophobia.exe": "Phasmophobia",
+        "deadbydaylight-win64-shipping.exe": "DBD",
+        "palworld-win64-shipping.exe": "Palworld",
+        "helldivers2.exe": "Helldivers 2",
+        "theforest.exe": "The Forest",
+        "sonsoftheforest.exe": "Sons of Forest",
+        # Microsoft Games
+        "solitaire.exe": "Solitaire",
+        "microsoftsolitairecollection.exe": "Solitaire",
+    }
+
+    def __init__(self):
+        self._current_game: Optional[str] = None
+        self._game_display_name: Optional[str] = None
+        self._game_start_time: Optional[float] = None
+        self._last_check_time: float = 0
+        self._check_interval: float = 2.0  # Her 2 saniyede kontrol et
+        self._custom_games: Dict[str, str] = {}  # Kullanıcı tanımlı oyunlar
+        self._init_psutil()
+
+    def _init_psutil(self):
+        """psutil modülünü kontrol et"""
+        try:
+            import psutil  # type: ignore[import]
+            self._psutil = psutil
+            print("[OK] Oyun izleme aktif")
+        except ImportError:
+            print("[!] psutil yüklü değil: pip install psutil")
+            self._psutil = None
+
+    def add_custom_game(self, process_name: str, display_name: str):
+        """Özel oyun ekle"""
+        self._custom_games[process_name.lower()] = display_name
+
+    def _get_running_processes(self) -> set:
+        """Çalışan tüm process isimlerini döndür"""
+        if not self._psutil:
+            return set()
+        
+        try:
+            processes = set()
+            for proc in self._psutil.process_iter(['name']):
+                try:
+                    name = proc.info['name']
+                    if name:
+                        processes.add(name.lower())
+                except (self._psutil.NoSuchProcess, self._psutil.AccessDenied):
+                    pass
+            return processes
+        except Exception:
+            return set()
+
+    def _find_active_game(self) -> Optional[tuple]:
+        """Aktif oyunu bul. Döndürür: (process_name, display_name) veya None"""
+        running = self._get_running_processes()
+        
+        # Önce özel oyunları kontrol et
+        for proc_name, display_name in self._custom_games.items():
+            if proc_name in running:
+                return (proc_name, display_name)
+        
+        # Sonra bilinen oyunları kontrol et
+        for proc_name, display_name in self.KNOWN_GAMES.items():
+            if proc_name in running:
+                return (proc_name, display_name)
+        
+        return None
+
+    def check_game(self) -> Optional[Dict[str, any]]:
+        """
+        Aktif oyunu kontrol et.
+        Döndürür: {
+            'game': str,           # Oyun adı
+            'duration_str': str,   # Süre (örn: "1s 23dk")
+            'duration_sec': int,   # Toplam saniye
+            'just_started': bool,  # Yeni mi başladı
+            'just_ended': bool,    # Yeni mi bitti
+        } veya None
+        """
+        current_time = time.time()
+        
+        # Çok sık kontrol etme
+        if current_time - self._last_check_time < self._check_interval:
+            if self._current_game:
+                # Mevcut oyun devam ediyor
+                duration = int(current_time - self._game_start_time)
+                return {
+                    'game': self._game_display_name,
+                    'duration_str': self._format_duration(duration),
+                    'duration_sec': duration,
+                    'just_started': False,
+                    'just_ended': False,
+                }
+            return None
+        
+        self._last_check_time = current_time
+        
+        # Aktif oyunu bul
+        game_info = self._find_active_game()
+        
+        if game_info:
+            proc_name, display_name = game_info
+            
+            if self._current_game != proc_name:
+                # Yeni oyun başladı
+                self._current_game = proc_name
+                self._game_display_name = display_name
+                self._game_start_time = current_time
+                return {
+                    'game': display_name,
+                    'duration_str': "0dk",
+                    'duration_sec': 0,
+                    'just_started': True,
+                    'just_ended': False,
+                }
+            else:
+                # Mevcut oyun devam ediyor
+                duration = int(current_time - self._game_start_time)
+                return {
+                    'game': display_name,
+                    'duration_str': self._format_duration(duration),
+                    'duration_sec': duration,
+                    'just_started': False,
+                    'just_ended': False,
+                }
+        else:
+            # Oyun kapandı
+            if self._current_game:
+                old_game = self._game_display_name
+                old_duration = int(current_time - self._game_start_time) if self._game_start_time else 0
+                self._current_game = None
+                self._game_display_name = None
+                self._game_start_time = None
+                return {
+                    'game': old_game,
+                    'duration_str': self._format_duration(old_duration),
+                    'duration_sec': old_duration,
+                    'just_started': False,
+                    'just_ended': True,
+                }
+            return None
+
+    def _format_duration(self, seconds: int) -> str:
+        """Süreyi formatla: 1s 23dk veya 45dk veya 30sn"""
+        if seconds < 60:
+            return f"{seconds}sn"
+        elif seconds < 3600:
+            minutes = seconds // 60
+            return f"{minutes}dk"
+        else:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            return f"{hours}s {minutes}dk"
+
+    def is_gaming(self) -> bool:
+        """Oyun modunda mı?"""
+        return self._current_game is not None
+
+    def get_current_game(self) -> Optional[str]:
+        """Mevcut oyun adını döndür"""
+        return self._game_display_name
+
+
+class TemperatureMonitor:
+    """CPU ve GPU sıcaklık izleyici"""
+
+    def __init__(self):
+        self._wmi = None
+        self._ohm = None
+        self._last_cpu_temp: Optional[float] = None
+        self._last_gpu_temp: Optional[float] = None
+        self._init_temperature_source()
+
+    def _init_temperature_source(self):
+        """Sıcaklık kaynağını başlat (WMI/OpenHardwareMonitor)"""
+        # Önce OpenHardwareMonitor/LibreHardwareMonitor dene
+        try:
+            import wmi  # type: ignore[import]
+            self._wmi = wmi.WMI(namespace="root\\OpenHardwareMonitor")
+            # Test et
+            sensors = self._wmi.Sensor()
+            if sensors:
+                print("[OK] Sicaklik izleme aktif (OpenHardwareMonitor)")
+                self._ohm = True
+                return
+        except Exception:
+            pass
+
+        # LibreHardwareMonitor dene
+        try:
+            import wmi  # type: ignore[import]
+            self._wmi = wmi.WMI(namespace="root\\LibreHardwareMonitor")
+            sensors = self._wmi.Sensor()
+            if sensors:
+                print("[OK] Sicaklik izleme aktif (LibreHardwareMonitor)")
+                self._ohm = True
+                return
+        except Exception:
+            pass
+
+        # WMI MSAcpi_ThermalZoneTemperature dene (sadece bazı sistemlerde çalışır)
+        try:
+            import wmi  # type: ignore[import]
+            self._wmi = wmi.WMI(namespace="root\\WMI")
+            temps = self._wmi.MSAcpi_ThermalZoneTemperature()
+            if temps:
+                print("[OK] Sicaklik izleme aktif (WMI Thermal)")
+                self._ohm = False
+                return
+        except Exception:
+            pass
+
+        print("[!] Sicaklik izleme aktif degil")
+        print("    OpenHardwareMonitor veya LibreHardwareMonitor kurun")
+        print("    Indir: github.com/LibreHardwareMonitor")
+        self._wmi = None
+
+    def get_temperatures(self) -> Dict[str, Optional[float]]:
+        """
+        CPU ve GPU sıcaklıklarını döndür.
+        Döndürür: {'cpu': float veya None, 'gpu': float veya None}
+        """
+        result = {'cpu': None, 'gpu': None}
+
+        if not self._wmi:
+            return result
+
+        try:
+            if self._ohm:
+                # OpenHardwareMonitor / LibreHardwareMonitor
+                sensors = self._wmi.Sensor()
+                
+                cpu_temps = []
+                gpu_temps = []
+                
+                for sensor in sensors:
+                    if sensor.SensorType == "Temperature":
+                        name = sensor.Name.lower() if sensor.Name else ""
+                        parent = sensor.Parent.lower() if sensor.Parent else ""
+                        
+                        # CPU sıcaklığı
+                        if "cpu" in parent or "cpu" in name:
+                            if "package" in name or "core" in name or "cpu" in name:
+                                try:
+                                    val = float(sensor.Value)
+                                    if 0 < val < 150:  # Mantıklı aralık
+                                        cpu_temps.append(val)
+                                except (ValueError, TypeError):
+                                    pass
+                        
+                        # GPU sıcaklığı
+                        if "gpu" in parent or "nvidia" in parent or "amd" in parent or "radeon" in parent:
+                            if "core" in name or "gpu" in name or "temperature" in name:
+                                try:
+                                    val = float(sensor.Value)
+                                    if 0 < val < 150:
+                                        gpu_temps.append(val)
+                                except (ValueError, TypeError):
+                                    pass
+
+                # En yüksek değerleri al
+                if cpu_temps:
+                    result['cpu'] = max(cpu_temps)
+                    self._last_cpu_temp = result['cpu']
+                elif self._last_cpu_temp:
+                    result['cpu'] = self._last_cpu_temp
+
+                if gpu_temps:
+                    result['gpu'] = max(gpu_temps)
+                    self._last_gpu_temp = result['gpu']
+                elif self._last_gpu_temp:
+                    result['gpu'] = self._last_gpu_temp
+
+            else:
+                # WMI Thermal Zone (genelde sadece CPU)
+                temps = self._wmi.MSAcpi_ThermalZoneTemperature()
+                if temps:
+                    # Kelvin'den Celsius'a çevir
+                    temp_k = temps[0].CurrentTemperature / 10.0
+                    temp_c = temp_k - 273.15
+                    if 0 < temp_c < 150:
+                        result['cpu'] = round(temp_c, 1)
+                        self._last_cpu_temp = result['cpu']
+
+        except Exception:
+            # Hata durumunda son bilinen değerleri kullan
+            if self._last_cpu_temp:
+                result['cpu'] = self._last_cpu_temp
+            if self._last_gpu_temp:
+                result['gpu'] = self._last_gpu_temp
+
+        return result
+
+    def get_temperature_display(self) -> str:
+        """
+        OLED için sıcaklık gösterimi.
+        Döndürür: "CPU:58C GPU:72C" veya "CPU:58C" (sadece CPU varsa)
+        """
+        temps = self.get_temperatures()
+        
+        parts = []
+        if temps['cpu'] is not None:
+            parts.append(f"CPU:{int(temps['cpu'])}C")
+        if temps['gpu'] is not None:
+            parts.append(f"GPU:{int(temps['gpu'])}C")
+        
+        if parts:
+            return " ".join(parts)
+        return "Sicaklik Yok"
+
+    def is_available(self) -> bool:
+        """Sıcaklık izleme mevcut mu?"""
+        return self._wmi is not None

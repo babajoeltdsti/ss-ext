@@ -9,6 +9,8 @@ SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini g
 - 🔊 **Ses Kontrolü** - Ses seviyesi ve mute durumu
 - 📱 **Bildirimler** - WhatsApp, Discord, Telegram vb.
 - 📧 **E-posta** - IMAP ile yeni e-posta bildirimleri
+- 🎮 **Oyun Modu** - Aktif oyun adı, süre ve sıcaklık gösterimi
+- 🌡️ **Sıcaklık** - CPU/GPU sıcaklık izleme (oyun modunda)
 - 🔄 **Otomatik Güncelleme** - GitHub'dan otomatik güncelleme
 
 ## Gereksinimler
@@ -73,8 +75,8 @@ ss-ext/
 
 ```env
 SSEXT_EMAIL_ADDRESS=email@example.com
-SSEXT_EMAIL_PASSWORD=uygulama_sifresi
-SSEXT_IMAP_SERVER=imap.gmail.com
+SSEXT_EMAIL_PASSWORD=examplepassword
+SSEXT_IMAP_SERVER=mail.example.com
 SSEXT_IMAP_PORT=993
 SSEXT_EMAIL_ENABLED=True
 ```

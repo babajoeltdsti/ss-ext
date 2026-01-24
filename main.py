@@ -13,9 +13,11 @@ from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED, EMAIL_
 from auto_updater import check_and_update
 from system_monitor import (
     EmailMonitor,
+    GameMonitor,
     NotificationMonitor,
     SpotifyMonitor,
     SystemMonitor,
+    TemperatureMonitor,
     VolumeMonitor,
 )
 
@@ -49,12 +51,18 @@ class GGExt:
         self.volume = VolumeMonitor()
         self.notifications = NotificationMonitor()
         self.email_monitor = EmailMonitor()
+        self.game_monitor = GameMonitor()
+        self.temp_monitor = TemperatureMonitor()
         self.running = False
 
         # Overlay durumları (geçici gösterimler için)
         self._overlay_active = False
         self._overlay_end_time = 0
         self._overlay_type = None
+        
+        # Oyun modu durumu
+        self._game_mode_active = False
+        self._last_game_log = None
 
         # Signal handlers
         signal.signal(signal.SIGINT, self._stop)
@@ -199,6 +207,44 @@ class GGExt:
                 if self._overlay_active:
                     self._overlay_active = False
                     self._overlay_type = None
+
+                # --- Öncelik 3: Oyun Modu ---
+                game_info = self.game_monitor.check_game()
+                
+                if game_info:
+                    if game_info.get('just_started'):
+                        print(f"{G}[🎮]{RESET} {W}Oyun basladi: {game_info['game']}{RESET}")
+                        self._game_mode_active = True
+                        self._last_game_log = game_info['game']
+                    
+                    if game_info.get('just_ended'):
+                        print(f"{Y}[🎮]{RESET} {W}Oyun bitti: {game_info['game']} ({game_info['duration_str']}){RESET}")
+                        self._game_mode_active = False
+                        self._last_game_log = None
+                    elif not game_info.get('just_ended'):
+                        # Oyun devam ediyor - sıcaklık bilgisini al
+                        temps = self.temp_monitor.get_temperatures()
+                        temp_str = None
+                        if temps['cpu'] is not None or temps['gpu'] is not None:
+                            parts = []
+                            if temps['cpu'] is not None:
+                                parts.append(f"C:{int(temps['cpu'])}")
+                            if temps['gpu'] is not None:
+                                parts.append(f"G:{int(temps['gpu'])}")
+                            temp_str = " ".join(parts)
+                        
+                        # OLED'e gönder
+                        self.client.send_game_mode(
+                            game=game_info['game'],
+                            duration=game_info['duration_str'],
+                            temps=temp_str
+                        )
+                        time.sleep(UPDATE_INTERVAL)
+                        continue
+                
+                # Oyun modu aktif değilse normal moda geç
+                if self._game_mode_active and not game_info:
+                    self._game_mode_active = False
 
                 # --- Normal mod: Spotify veya Saat ---
                 track = self.spotify.get_current_track()

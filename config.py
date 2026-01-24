@@ -90,4 +90,6 @@ ICONS = {
     "music": 40,
     "email": 18,      # @ Symbol - e-posta bildirimleri için
     "message": 20,    # Talking - mesajlaşma bildirimleri için
+    "game": 38,       # Controller - oyun modu için
 }
+

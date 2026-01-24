@@ -147,7 +147,17 @@ class GameSenseClient:
                     {"has-text": True, "context-frame-key": "progress"},
                 ],
             ),
+            # Oyun modu handler'ı - Aktif oyun + süre + sıcaklık
+            (
+                "GAME_MODE",
+                ICONS["game"],
+                [
+                    {"has-text": True, "context-frame-key": "game", "bold": True},
+                    {"has-text": True, "context-frame-key": "info"},
+                ],
+            ),
         ]
+
 
         for event, icon, lines in handlers:
             # Önce event'i kaydet (value_optional ile)
@@ -339,5 +349,32 @@ class GameSenseClient:
             "UPDATE_PROGRESS", {"title": title_centered, "progress": progress_display}
         )
 
+    def send_game_mode(self, game: str, duration: str, temps: str = None) -> bool:
+        """
+        Oyun modu göster - Aktif oyun + süre + sıcaklık
+        Args:
+            game: Oyun adı (örn: "Valorant")
+            duration: Süre (örn: "1s 23dk")
+            temps: Sıcaklık bilgisi (örn: "C:58 G:72") - opsiyonel
+        """
+        # Üst satır: Oyun adı (kısa tutulmalı, max 16 karakter, sola hizalı)
+        game_display = game[:16] if len(game) > 16 else game
+        game_line = game_display.ljust(16)
+
+        # Alt satır: Süre + Sıcaklık (her zaman göster)
+        if temps:
+            # Sıcaklık varsa: "23dk C:58 G:72"
+            info_line = f"{duration} {temps}"
+        else:
+            # Sadece süre
+            info_line = duration
+        
+        # 16 karaktere sığdır, sola hizalı
+        info_line = info_line[:16].ljust(16)
+
+        return self.send_event("GAME_MODE", {"game": game_line, "info": info_line})
+
     def heartbeat(self):
         self._post("game_heartbeat", {"game": GAME_NAME})
+
+
