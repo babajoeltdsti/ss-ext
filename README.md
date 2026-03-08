@@ -2,6 +2,9 @@
 
 SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen GameSense eklentisi.
 
+Yaptıklarım hoşunuza gidiyorsa bağış yapmaktan çekinmeyin; https://buymeacoffee.com/valentinoo
+Şimdiden yapılan bütün bağışlar için teşekkür ederim! Bunlar sayesinde gelen motivasyonla yeni sürümler ve yeni özellikler sizlerle olacak.
+
 ## Özellikler
 
 - ⏰ **Saat ve Tarih** - Gerçek zamanlı gösterim
