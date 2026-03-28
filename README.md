@@ -31,6 +31,15 @@ cmake --build build --config Release
 .\build\Release\ss-ext.exe
 ```
 
+## Download EXE (GitHub)
+- Go to Actions and open the latest successful `build-windows` run.
+- Download artifact: `carex-ext-windows-x64`.
+- Inside artifact, run `Carex-Ext.exe`.
+
+For permanent public download links:
+- Create and push a tag like `v1.0.0`.
+- Workflow will automatically attach `Carex-Ext.exe` under GitHub Releases.
+
 ## Stop
 ```powershell
 .\build\Release\ss-ext.exe --stop
