@@ -1,177 +1,174 @@
-# SS-EXT V2.0
+# Support This Project
+Buy me a coffee: https://buymeacoffee.com/valentinoo
 
-English is the default language for documentation and runtime messages. Turkish is available below.
+# SS-EXT (Windows)
 
-If this project helps you, you can support it: https://buymeacoffee.com/valentinoo
+SS-EXT is a Windows desktop companion that sends real-time events to SteelSeries GameSense devices.
 
-## Language
-
-- English (default)
-- Turkish: see [Turkce](#turkce)
-
-## Features
-
-- Clock and Date on SteelSeries OLED
-- Spotify track metadata and timeline display
-- Volume and mute status overlays
-- Windows messaging notifications (WhatsApp, Discord, Telegram, etc.)
-- IMAP email notifications
-- Game Mode with session duration and CPU/GPU temperatures
-- Automatic update checks from GitHub releases
-- System tray control (Settings, Restart, Exit)
-- Optional Start with Windows toggle from tray
+## Highlights
+- Native Windows tray app
+- Real-time Spotify title + progress display
+- Clock/date mode with smooth second alignment
+- Volume, notification, game mode, and email overlays
+- EN/TR language support
+- Single-instance runtime with graceful external stop command
 
 ## Requirements
+- Windows 10/11 (x64)
+- SteelSeries GG / Engine installed and running
+- Visual Studio 2022 Build Tools (for local compile)
+- CMake 3.20+
 
-- Windows only
-- SteelSeries GG must be installed and running
-
-End users do not need Python or build tools.
-
-## Install
-
-```bash
-# End-user: use published EXE package
-# Place ss-ext.exe (or dist\ss-ext.exe) in folder and run baslat.bat
+## Build
+```powershell
+cd cpp
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
 ```
 
 ## Run
-
-```bash
-# start (EXE-first)
-baslat.bat
-
-# open settings UI
-settings.bat
-
-# graceful stop
-durdur.bat
+```powershell
+.\build\Release\ss-ext.exe
 ```
 
-## Configuration
-
-Settings are loaded from environment variables (`.env` is supported).
-
-| Key | Default | Description |
-|---|---|---|
-| `SSEXT_LANG` | `en` | UI/message language: `en` or `tr` |
-| `SSEXT_EMAIL_ENABLED` | `True` | Enables IMAP email monitoring |
-| `SSEXT_EMAIL_CHECK_INTERVAL` | `10` | Email polling interval (seconds) |
-| `SSEXT_EMAIL_DISPLAY_DURATION` | `10` | OLED overlay duration for email |
-
-Email settings example:
-
-```env
-SSEXT_LANG=en
-SSEXT_EMAIL_ADDRESS=email@example.com
-SSEXT_EMAIL_PASSWORD=examplepassword
-SSEXT_IMAP_SERVER=mail.example.com
-SSEXT_IMAP_PORT=993
-SSEXT_IMAP_SSL=True
-SSEXT_EMAIL_ENABLED=True
+## Stop
+```powershell
+.\build\Release\ss-ext.exe --stop
 ```
 
-You can also configure these values from the built-in settings window:
-
-```bash
-# on Windows
-settings.bat
+## Health Check
+```powershell
+.\build\Release\ss-ext.exe --doctor
 ```
 
-Tray mode can open settings anytime from the tray menu.
+## User-Editable Settings
+Settings file is stored in `%APPDATA%\ss-ext-cpp\settings.ini`.
 
-## Update Support
+Editable examples:
+- `language`
+- `auto_update_check`
+- `auto_start_task_enabled`
+- `email_*` settings
+- Spotify UI timing settings (`spotify_poll_interval_ms`, `spotify_marquee_shift_ms`, `spotify_timeline_refresh_ms`)
 
-SS-EXT checks the latest GitHub release automatically at startup.
+Protected (non-editable) metadata is enforced in code:
+- App identity
+- Developer name
+- App version
+- Update repository identity
 
-- Python source mode: downloads release zip and updates project files in place.
-- EXE mode (PyInstaller/onefile): downloads the release EXE asset, stages replacement, and relaunches after exit.
-
-Release recommendation for broad user rollout:
-
-1. Publish a tagged GitHub release (`vX.Y.Z`).
-2. Upload a Windows EXE asset (example: `ss-ext-win-x64.exe`).
-3. Keep semantic version tags so clients can compare correctly.
-
-## Build EXE (Windows)
-
-This section is for maintainer/release workflow only. End users should not build.
-
-Example command:
-
-```bash
-pyinstaller --onefile --windowed main.py
+## Credentials
+Use Windows Credential Manager integration via commands:
+```powershell
+.\build\Release\ss-ext.exe --set-email-credential your@email.com app_password
+.\build\Release\ss-ext.exe --clear-email-credential
 ```
 
-Or use the included helper script:
-
-```bash
-build_exe.bat
-```
-
-Output location:
-
-- Main output: `dist\\ss-ext.exe`
-- Optional copy for launcher compatibility: project root `ss-ext.exe`
-
-For production, include hidden imports for `winrt`, `pycaw`, `comtypes`, and `pywin32` modules if needed.
-
-## Release Workflow (Maintainer)
-
-1. Build EXE via `build_exe.bat`.
-2. Validate startup/tray/settings/update behavior on clean Windows machine.
-3. Publish GitHub release tag (`vX.Y.Z`) and upload EXE asset.
-4. Send/publish this EXE package to SteelSeries distribution channel.
-
-## Supported Devices
-
-- SteelSeries Apex Pro / Pro TKL
-- SteelSeries Apex 7 / 5
-- Other SteelSeries OLED-capable devices
-
-## Notes
-
-- `coreProps.json` is resolved from `%PROGRAMDATA%\SteelSeries\SteelSeries Engine 3\`.
-- Store sensitive credentials in environment variables; do not hardcode secrets.
+## Roadmap: Potential Features
+- Custom per-zone OLED layouts for supported devices
+- User-defined overlay priority rules
+- Per-app notification filters and quiet hours
+- Rich media integrations (YouTube Music, Apple Music, browser players)
+- Advanced game profiles with per-title templates
+- GPU temperature/load telemetry integration
+- CPU package power and fan curve overlays
+- Multi-account email monitoring with profile switching
+- OAuth-based email setup wizard
+- In-app settings window (instead of file-only editing)
+- Live preview panel for OLED output
+- Backup/restore settings profiles
+- Export/import theme packs
+- Plugin system for third-party data sources
+- Weather/calendar overlays with configurable schedule
+- Discord/Rich Presence based status overlays
+- Optional cloud sync for settings
+- Signed update channel + beta/stable tracks
+- Crash report packaging with one-click consent upload
+- Built-in diagnostics dashboard with latency graphs
 
 ---
 
-## Turkce
+# SS-EXT (Türkçe)
 
-SS-EXT, SteelSeries OLED ekraninda saat, Spotify, ses, bildirim ve e-posta bilgilerini gosteren bir GameSense eklentisidir.
+SS-EXT, SteelSeries GameSense cihazlarına gerçek zamanlı veri gönderen Windows masaüstü yardımcı uygulamasıdır.
 
-### Ozellikler
+## Öne Çıkanlar
+- Yerel Windows tray uygulaması
+- Gerçek zamanlı Spotify şarkı adı + süre/progress gösterimi
+- Saniyeye hizalı saat/tarih görünümü
+- Ses seviyesi, bildirim, oyun modu ve e-posta overlay desteği
+- EN/TR dil desteği
+- Tek instance çalışma ve dışarıdan güvenli kapatma komutu
 
-- Saat ve tarih gosterimi
-- Spotify sarki bilgisi ve sure
-- Ses/mute overlay
-- WhatsApp/Discord/Telegram vb. bildirimler
-- IMAP e-posta bildirimi
-- Oyun modu (oyun suresi + CPU/GPU sicaklik)
-- GitHub release tabanli otomatik guncelleme
-- Sistem tepsisi kontrol menusu (Ayarlar, Yeniden Baslat, Cikis)
-- Tepsiden Windows baslangicinda calistirma ac/kapat
+## Gereksinimler
+- Windows 10/11 (x64)
+- SteelSeries GG / Engine kurulu ve açık
+- Visual Studio 2022 Build Tools (yerel derleme için)
+- CMake 3.20+
 
-### Dil Modu
-
-- Varsayilan: Ingilizce (`SSEXT_LANG=en`)
-- Turkce: `SSEXT_LANG=tr`
-
-### Guncelleme Notu
-
-- Python kaynak surumunde zip ile dosyalar yerinde guncellenir.
-- EXE surumunde release EXE dosyasi indirilir, uygulama kapandiktan sonra yer degistirilir ve yeniden acilir.
-
-### Kurulum/Kullanim
-
-```bash
-# Son kullanici: yayinlanan EXE paketini kullanir
-baslat.bat
-gizli_baslat.vbs
-settings.bat
-durdur.bat
+## Derleme
+```powershell
+cd cpp
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
 ```
 
----
+## Çalıştırma
+```powershell
+.\build\Release\ss-ext.exe
+```
 
-Author: OMERBABACO
+## Durdurma
+```powershell
+.\build\Release\ss-ext.exe --stop
+```
+
+## Sağlık Kontrolü
+```powershell
+.\build\Release\ss-ext.exe --doctor
+```
+
+## Kullanıcının Düzenleyebileceği Ayarlar
+Ayar dosyası: `%APPDATA%\ss-ext-cpp\settings.ini`
+
+Örnek düzenlenebilir alanlar:
+- `language`
+- `auto_update_check`
+- `auto_start_task_enabled`
+- `email_*` ayarları
+- Spotify zamanlama ayarları (`spotify_poll_interval_ms`, `spotify_marquee_shift_ms`, `spotify_timeline_refresh_ms`)
+
+Kullanıcıya kapalı (kod içinde sabitlenen) metadata:
+- Uygulama kimliği
+- Geliştirici adı
+- Uygulama sürümü
+- Güncelleme repository kimliği
+
+## Kimlik Bilgileri
+Windows Credential Manager entegrasyonu için komutlar:
+```powershell
+.\build\Release\ss-ext.exe --set-email-credential your@email.com app_password
+.\build\Release\ss-ext.exe --clear-email-credential
+```
+
+## Gelecekte Eklenebilecek Özellikler
+- Desteklenen cihazlar için zone bazlı özel OLED yerleşimleri
+- Kullanıcı tanımlı overlay öncelik kuralları
+- Uygulama bazlı bildirim filtreleri ve sessiz saatler
+- Zengin medya entegrasyonları (YouTube Music, Apple Music, tarayıcı oynatıcıları)
+- Oyun başlığına özel profil/şablon sistemi
+- GPU sıcaklık/yük telemetrisi
+- CPU paket gücü ve fan eğrisi overlay’i
+- Çoklu e-posta hesabı ve profil geçişi
+- OAuth tabanlı e-posta kurulum sihirbazı
+- Dosya yerine uygulama içi ayar penceresi
+- OLED canlı önizleme paneli
+- Ayar profilini yedekleme/geri yükleme
+- Tema paketlerini dışa/içe aktarma
+- Üçüncü taraf veri kaynakları için plugin sistemi
+- Hava durumu/takvim overlay’leri (zamanlanabilir)
+- Discord/Rich Presence tabanlı durum gösterimi
+- Opsiyonel bulut ayar senkronizasyonu
+- İmzalı güncelleme kanalı + beta/stable ayrımı
+- Tek tık onaylı çökme raporu gönderimi
+- Gecikme grafikleri içeren tanılama paneli

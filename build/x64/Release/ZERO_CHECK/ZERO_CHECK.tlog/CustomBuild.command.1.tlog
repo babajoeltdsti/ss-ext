@@ -1,0 +1,10 @@
+^C:\SS-EXT\CPP\BUILD\CMAKEFILES\86F38F2A24BD942055C8FAC971FAFF4E\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/ss-ext/cpp -BC:/ss-ext/cpp/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/ss-ext/cpp/build/ss_ext_cpp.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

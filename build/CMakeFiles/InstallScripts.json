@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/ss-ext/cpp/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
