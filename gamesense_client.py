@@ -11,6 +11,7 @@ import requests
 
 from config import DEVELOPER, GAME_DISPLAY_NAME, GAME_NAME, ICONS, get_core_props_path
 from intro_animation import INTRO_TEXT_FRAMES
+from i18n import t
 
 
 class GameSenseClient:
@@ -24,8 +25,8 @@ class GameSenseClient:
         path = get_core_props_path()
 
         if not os.path.exists(path):
-            print("[X] SteelSeries Engine bulunamadi!")
-            print(f"    Konum: {path}")
+            print(f"[X] {t('server_not_found')}")
+            print(f"    {t('server_path', path=path)}")
             return False
 
         try:
@@ -33,7 +34,7 @@ class GameSenseClient:
                 props = json.load(f)
                 if props.get("address"):
                     self.base_url = f"http://{props['address']}"
-                    print(f"[OK] SteelSeries Engine: {self.base_url}")
+                    print(f"[OK] {t('server_ok', url=self.base_url)}")
                     return True
         except Exception as e:
             print(f"[X] Hata: {e}")
@@ -57,7 +58,7 @@ class GameSenseClient:
             "deinitialize_timer_length_ms": 60000,
         }
         if self._post("game_metadata", data) is not None:
-            print(f"[OK] Uygulama: {GAME_DISPLAY_NAME}")
+            print(f"[OK] {t('register_ok', name=GAME_DISPLAY_NAME)}")
             return True
         return False
 
@@ -179,7 +180,7 @@ class GameSenseClient:
             if self._post("bind_game_event", data) is None:
                 return False
 
-        print("[OK] Handler'lar ayarlandi")
+        print(f"[OK] {t('handlers_ready')}")
         return True
 
     def send_event(self, event: str, frame: Dict[str, Any]) -> bool:
@@ -276,10 +277,10 @@ class GameSenseClient:
     def send_volume(self, volume: int, muted: bool = False) -> bool:
         """Ses seviyesini ekranda göster"""
         if muted:
-            title = "    SESSIZ".center(16)
-            level = "   SES KAPALI".center(16)
+            title = t("volume_muted").center(16)
+            level = t("volume_off").center(16)
         else:
-            title = "SES SEVIYESI".center(16)
+            title = t("volume_title").center(16)
             # Progress bar oluştur
             bar_len = 8
             filled = int(volume / 100 * bar_len)
@@ -287,8 +288,11 @@ class GameSenseClient:
             level = f"{bar} %{volume}".center(16)
         return self.send_event("VOLUME", {"title": title, "level": level})
 
-    def send_notification(self, app: str, message: str = "Bildirim", scroll_offset: int = 0) -> bool:
+    def send_notification(self, app: str, message: str = None, scroll_offset: int = 0) -> bool:
         """Bildirim göster (mesajlaşma uygulamaları için). Uzun mesajlar kayan yazı olur."""
+        if message is None:
+            message = t("notification_new")
+
         # Başlık (app) için 10 karakter sınırı; uzun ise kayan yazı kullan
         title_width = 10
         app_display = app if len(app) <= title_width else app[:title_width]

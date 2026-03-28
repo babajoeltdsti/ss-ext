@@ -22,9 +22,13 @@ def find_and_stop():
         try:
             cmdline = proc.info.get("cmdline") or []
             cmdline_str = " ".join(cmdline).lower()
+            proc_name = (proc.info.get("name") or "").lower()
 
-            # main.py calistiran python process'i bul
-            if "python" in proc.info["name"].lower() and "main.py" in cmdline_str:
+            # main.py calistiran python process'i veya ss-ext.exe process'i bul
+            is_python_main = "python" in proc_name and "main.py" in cmdline_str
+            is_exe = "ss-ext.exe" in proc_name or "ss-ext.exe" in cmdline_str
+
+            if is_python_main or is_exe:
                 print(f"[*] SS-EXT bulundu (PID: {proc.pid})")
                 print("[*] Kapanis animasyonu baslatiliyor...")
 

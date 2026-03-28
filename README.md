@@ -1,109 +1,177 @@
 # SS-EXT V2.0
 
-SteelSeries klavyelerin OLED ekranlarında gerçek zamanlı sistem bilgilerini görüntüleyen GameSense eklentisi.
+English is the default language for documentation and runtime messages. Turkish is available below.
 
-Yaptıklarım hoşunuza gidiyorsa bağış yapmaktan çekinmeyin; https://buymeacoffee.com/valentinoo
-Şimdiden yapılan bütün bağışlar için teşekkür ederim! Bunlar sayesinde gelen motivasyonla yeni sürümler ve yeni özellikler sizlerle olacak.
+If this project helps you, you can support it: https://buymeacoffee.com/valentinoo
 
-## Özellikler
+## Language
 
-- ⏰ **Saat ve Tarih** - Gerçek zamanlı gösterim
-- 🎵 **Spotify** - Çalan şarkı bilgisi ve ilerleme çubuğu
-- 🔊 **Ses Kontrolü** - Ses seviyesi ve mute durumu
-- 📱 **Bildirimler** - WhatsApp, Discord, Telegram vb.
-- 📧 **E-posta** - IMAP ile yeni e-posta bildirimleri
-- 🎮 **Oyun Modu** - Aktif oyun adı, süre ve sıcaklık gösterimi
-- 🌡️ **Sıcaklık** - CPU/GPU sıcaklık izleme (oyun modunda)
-- 🔄 **Otomatik Güncelleme** - GitHub'dan otomatik güncelleme
+- English (default)
+- Turkish: see [Turkce](#turkce)
 
-## Gereksinimler
+## Features
 
-- **Windows** (zorunlu)
-- **SteelSeries GG** uygulaması çalışıyor olmalı
-- **Python 3.8+**
+- Clock and Date on SteelSeries OLED
+- Spotify track metadata and timeline display
+- Volume and mute status overlays
+- Windows messaging notifications (WhatsApp, Discord, Telegram, etc.)
+- IMAP email notifications
+- Game Mode with session duration and CPU/GPU temperatures
+- Automatic update checks from GitHub releases
+- System tray control (Settings, Restart, Exit)
+- Optional Start with Windows toggle from tray
 
-## Kurulum
+## Requirements
+
+- Windows only
+- SteelSeries GG must be installed and running
+
+End users do not need Python or build tools.
+
+## Install
 
 ```bash
-# Otomatik kurulum
-kur.bat
-
-# veya manuel
-pip install -r requirements.txt
+# End-user: use published EXE package
+# Place ss-ext.exe (or dist\ss-ext.exe) in folder and run baslat.bat
 ```
 
-## Kullanım
+## Run
 
 ```bash
-# Normal başlatma
-python main.py
+# start (EXE-first)
 baslat.bat
 
-# Arka planda (pencere olmadan)
-gizli_baslat.vbs
+# open settings UI
+settings.bat
 
-# Durdurma
-python stop_graceful.py
+# graceful stop
 durdur.bat
 ```
 
-## Dosya Yapısı
+## Configuration
 
-```
-ss-ext/
- main.py              # Ana uygulama
- gamesense_client.py  # GameSense API istemcisi
- system_monitor.py    # Monitör modülleri
- config.py            # Yapılandırma
- intro_animation.py   # Animasyonlar
- auto_updater.py      # Otomatik güncelleme
- stop_graceful.py     # Düzgün kapatma
- requirements.txt     # Bağımlılıklar
- kur.bat              # Kurulum scripti
- baslat.bat           # Başlatma scripti
- gizli_baslat.vbs     # Gizli başlatma
- durdur.bat           # Durdurma scripti
-```
+Settings are loaded from environment variables (`.env` is supported).
 
-## Yapılandırma
+| Key | Default | Description |
+|---|---|---|
+| `SSEXT_LANG` | `en` | UI/message language: `en` or `tr` |
+| `SSEXT_EMAIL_ENABLED` | `True` | Enables IMAP email monitoring |
+| `SSEXT_EMAIL_CHECK_INTERVAL` | `10` | Email polling interval (seconds) |
+| `SSEXT_EMAIL_DISPLAY_DURATION` | `10` | OLED overlay duration for email |
 
-`config.py` veya `.env` dosyasından ayarlar:
-
-| Ayar | Varsayılan | Açıklama |
-|------|------------|----------|
-| `UPDATE_INTERVAL` | `0.2` | Güncelleme aralığı (saniye) |
-| `AUTO_UPDATE_ENABLED` | `True` | Otomatik güncelleme |
-
-### E-posta Ayarları (.env)
+Email settings example:
 
 ```env
+SSEXT_LANG=en
 SSEXT_EMAIL_ADDRESS=email@example.com
 SSEXT_EMAIL_PASSWORD=examplepassword
 SSEXT_IMAP_SERVER=mail.example.com
 SSEXT_IMAP_PORT=993
+SSEXT_IMAP_SSL=True
 SSEXT_EMAIL_ENABLED=True
 ```
 
-## Desteklenen Cihazlar
+You can also configure these values from the built-in settings window:
+
+```bash
+# on Windows
+settings.bat
+```
+
+Tray mode can open settings anytime from the tray menu.
+
+## Update Support
+
+SS-EXT checks the latest GitHub release automatically at startup.
+
+- Python source mode: downloads release zip and updates project files in place.
+- EXE mode (PyInstaller/onefile): downloads the release EXE asset, stages replacement, and relaunches after exit.
+
+Release recommendation for broad user rollout:
+
+1. Publish a tagged GitHub release (`vX.Y.Z`).
+2. Upload a Windows EXE asset (example: `ss-ext-win-x64.exe`).
+3. Keep semantic version tags so clients can compare correctly.
+
+## Build EXE (Windows)
+
+This section is for maintainer/release workflow only. End users should not build.
+
+Example command:
+
+```bash
+pyinstaller --onefile --windowed main.py
+```
+
+Or use the included helper script:
+
+```bash
+build_exe.bat
+```
+
+Output location:
+
+- Main output: `dist\\ss-ext.exe`
+- Optional copy for launcher compatibility: project root `ss-ext.exe`
+
+For production, include hidden imports for `winrt`, `pycaw`, `comtypes`, and `pywin32` modules if needed.
+
+## Release Workflow (Maintainer)
+
+1. Build EXE via `build_exe.bat`.
+2. Validate startup/tray/settings/update behavior on clean Windows machine.
+3. Publish GitHub release tag (`vX.Y.Z`) and upload EXE asset.
+4. Send/publish this EXE package to SteelSeries distribution channel.
+
+## Supported Devices
 
 - SteelSeries Apex Pro / Pro TKL
 - SteelSeries Apex 7 / 5
-- OLED ekranlı diğer SteelSeries cihazları
+- Other SteelSeries OLED-capable devices
 
-## Debug Modu
+## Notes
 
-```bash
-python main.py --debug
-# veya
-set SSEXT_DEBUG=1
-python main.py
-```
-
-## Notlar
-
-- `coreProps.json` konumu: `%PROGRAMDATA%\SteelSeries\SteelSeries Engine 3\`
-- Hassas bilgileri `.env` dosyasında saklayın (gitignore'da)
+- `coreProps.json` is resolved from `%PROGRAMDATA%\SteelSeries\SteelSeries Engine 3\`.
+- Store sensitive credentials in environment variables; do not hardcode secrets.
 
 ---
 
-**Yapımcı:** OMERBABACO
+## Turkce
+
+SS-EXT, SteelSeries OLED ekraninda saat, Spotify, ses, bildirim ve e-posta bilgilerini gosteren bir GameSense eklentisidir.
+
+### Ozellikler
+
+- Saat ve tarih gosterimi
+- Spotify sarki bilgisi ve sure
+- Ses/mute overlay
+- WhatsApp/Discord/Telegram vb. bildirimler
+- IMAP e-posta bildirimi
+- Oyun modu (oyun suresi + CPU/GPU sicaklik)
+- GitHub release tabanli otomatik guncelleme
+- Sistem tepsisi kontrol menusu (Ayarlar, Yeniden Baslat, Cikis)
+- Tepsiden Windows baslangicinda calistirma ac/kapat
+
+### Dil Modu
+
+- Varsayilan: Ingilizce (`SSEXT_LANG=en`)
+- Turkce: `SSEXT_LANG=tr`
+
+### Guncelleme Notu
+
+- Python kaynak surumunde zip ile dosyalar yerinde guncellenir.
+- EXE surumunde release EXE dosyasi indirilir, uygulama kapandiktan sonra yer degistirilir ve yeniden acilir.
+
+### Kurulum/Kullanim
+
+```bash
+# Son kullanici: yayinlanan EXE paketini kullanir
+baslat.bat
+gizli_baslat.vbs
+settings.bat
+durdur.bat
+```
+
+---
+
+Author: OMERBABACO

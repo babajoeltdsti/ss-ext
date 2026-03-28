@@ -9,8 +9,10 @@ import sys
 import time
 
 from gamesense_client import GameSenseClient
-from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED, EMAIL_DISPLAY_DURATION, ICONS
+from config import UPDATE_INTERVAL, VERSION_DISPLAY, AUTO_UPDATE_ENABLED, EMAIL_DISPLAY_DURATION
 from auto_updater import check_and_update
+from i18n import t
+from settings_ui import open_settings_window
 from system_monitor import (
     EmailMonitor,
     GameMonitor,
@@ -36,6 +38,10 @@ DEBUG_PROGRESS = os.getenv("SSEXT_DEBUG", "0") == "1"
 # Allow --debug flag for Windows users who can't easily set env vars
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("--debug", action="store_true")
+parser.add_argument("--settings", action="store_true")
+parser.add_argument("--tray", action="store_true")
+parser.add_argument("--no-tray", action="store_true")
+parser.add_argument("--updated", action="store_true")
 args, _ = parser.parse_known_args()
 if args.debug:
     DEBUG_PROGRESS = True
@@ -74,12 +80,12 @@ class GGExt:
             pass  # Linux'ta SIGBREAK yok
 
     def _stop(self, *args):
-        print("\n[!] Kapatiliyor...")
+        print(f"\n[!] {t('app_shutdown')}")
         self.running = False
 
     def start(self) -> bool:
         print(C + "=" * 40 + RESET)
-        print(f"{Y}    SS-EXT {VERSION_DISPLAY} - SteelSeries OLED{RESET}")
+        print(f"{Y}    {t('app_title', version=VERSION_DISPLAY)}{RESET}")
         print(C + "=" * 40 + "\n")
 
         if not self.client.discover_server():
@@ -94,12 +100,12 @@ class GGExt:
             try:
                 needs_restart = check_and_update(self.client)
                 if needs_restart:
-                    print(f"\n{Y}[!]{RESET} {W}Güncelleme tamamlandı! Lütfen uygulamayı yeniden başlatın.{RESET}")
-                    print(f"{G}[*]{RESET} {W}3 saniye içinde çıkılıyor...{RESET}")
+                    print(f"\n{Y}[!]{RESET} {W}{t('updater_restart_required')}{RESET}")
+                    print(f"{G}[*]{RESET} {W}{t('updater_exit_soon')}{RESET}")
                     time.sleep(3)
                     sys.exit(0)
             except Exception as e:
-                print(f"{D}[!] Güncelleme kontrolü başarısız: {e}{RESET}")
+                print(f"{D}[!] {t('updater_check_failed', error=e)}{RESET}")
         
         # E-posta izlemeyi başlat
         if self.email_monitor.is_enabled():
@@ -111,7 +117,7 @@ class GGExt:
         # Intro
         self.client.play_intro()
 
-        print(f"{Y}[*]{RESET} {W}Çalışıyor... (Ctrl+C ile kapat)\n{RESET}")
+        print(f"{Y}[*]{RESET} {W}{t('app_running')}\n{RESET}")
 
         self.running = True
         hb_counter = 0
@@ -132,7 +138,7 @@ class GGExt:
                     email_notif = self.email_monitor.get_pending_email()
                     if email_notif:
                         print(
-                            f"{Y}[📧]{RESET} {W}Yeni E-posta: {email_notif['sender']} - {email_notif['subject']}{RESET}"
+                            f"{Y}[📧]{RESET} {W}{t('log_new_email', sender=email_notif['sender'], subject=email_notif['subject'])}{RESET}"
                         )
 
                         # Başlık/gönderen için 10 karakter sınırı (scroll hedefi)
@@ -170,13 +176,13 @@ class GGExt:
                 notification = self.notifications.check_whatsapp_notification_simple()
                 if notification:
                     print(
-                        f"{Y}[📱]{RESET} {W}{notification['app']}: {notification.get('message', 'Yeni Bildirim')}{RESET}"
+                        f"{Y}[📱]{RESET} {W}{t('log_new_notification', app=notification['app'], message=notification.get('message', t('notification_new')))}{RESET}"
                     )
                     # Kayan yazı ile göster (mesaj uzun ise kaydır)
                     steps = max(1, int(NOTIFICATION_OVERLAY_DURATION / UPDATE_INTERVAL))
                     for i in range(steps):
                         self.client.send_notification(
-                            notification["app"], notification.get("message", "Yeni Bildirim"), scroll_offset=i
+                            notification["app"], notification.get("message", t("notification_new")), scroll_offset=i
                         )
                         time.sleep(UPDATE_INTERVAL)
                     self._overlay_active = True
@@ -189,8 +195,8 @@ class GGExt:
                 if volume_change:
                     vol = volume_change["volume"]
                     muted = volume_change["muted"]
-                    status = "MUTED" if muted else f"{vol}%"
-                    print(f"{C}[🔊]{RESET} {W}Ses: {status}{RESET}")
+                    status = t("volume_muted") if muted else f"{vol}%"
+                    print(f"{C}[🔊]{RESET} {W}{t('log_volume', status=status)}{RESET}")
                     self.client.send_volume(vol, muted)
                     self._overlay_active = True
                     self._overlay_end_time = current_time + VOLUME_OVERLAY_DURATION
@@ -213,12 +219,12 @@ class GGExt:
                 
                 if game_info:
                     if game_info.get('just_started'):
-                        print(f"{G}[🎮]{RESET} {W}Oyun basladi: {game_info['game']}{RESET}")
+                        print(f"{G}[🎮]{RESET} {W}{t('log_game_started', game=game_info['game'])}{RESET}")
                         self._game_mode_active = True
                         self._last_game_log = game_info['game']
                     
                     if game_info.get('just_ended'):
-                        print(f"{Y}[🎮]{RESET} {W}Oyun bitti: {game_info['game']} ({game_info['duration_str']}){RESET}")
+                        print(f"{Y}[🎮]{RESET} {W}{t('log_game_ended', game=game_info['game'], duration=game_info['duration_str'])}{RESET}")
                         self._game_mode_active = False
                         self._last_game_log = None
                     elif not game_info.get('just_ended'):
@@ -296,7 +302,7 @@ class GGExt:
                 else:
                     # Şarkı yok - saat modu
                     if last_track is not None:
-                        print(f"{D}[◷]{RESET} {W}Saat modu{RESET}")
+                        print(f"{D}[◷]{RESET} {W}{t('log_clock_mode')}{RESET}")
                         last_track = None
                         self.spotify.reset_scroll()
                         combined_scroll = 0
@@ -313,26 +319,54 @@ class GGExt:
                 time.sleep(UPDATE_INTERVAL)
 
             except Exception as e:
-                print(f"{R}[!]{RESET} {W}Hata: {e}{RESET}")
+                print(f"{R}[!]{RESET} {W}Error: {e}{RESET}")
                 time.sleep(1)
 
         # Kapanış animasyonu
-        print(f"\n{Y}[*]{RESET} {W}Kapaniyor...{RESET}")
+        print(f"\n{Y}[*]{RESET} {W}{t('app_closing')}{RESET}")
         
         # E-posta izlemeyi durdur
         if self.email_monitor.is_enabled():
             self.email_monitor.stop()
         
         self.client.play_outro()
-        print(f"{G}[OK]{RESET} {W}Kapatildi.{RESET}")
+        print(f"{G}[OK]{RESET} {W}{t('app_closed')}{RESET}")
 
 
 def main():
+    if args.settings:
+        open_settings_window()
+        return
+
+    use_tray = args.tray or (bool(getattr(sys, "frozen", False)) and not args.no_tray)
+
+    if use_tray:
+        from tray_mode import run_with_tray
+
+        app_holder = {"app": None}
+
+        def start_app() -> None:
+            app = GGExt()
+            app_holder["app"] = app
+            if not app.start():
+                print(f"\n{R}[X]{RESET} {t('app_start_failed')}")
+                print(f"    {D}{t('app_ensure_gg')}{RESET}")
+                return
+            app.run()
+
+        def stop_app() -> None:
+            app = app_holder.get("app")
+            if app:
+                app._stop()
+
+        run_with_tray(start_app=start_app, stop_app=stop_app, open_settings=open_settings_window)
+        return
+
     app = GGExt()
 
     if not app.start():
-        print(f"\n{R}[X]{RESET} Baslatilamadi!")
-        print(f"    {D}SteelSeries GG calistiginden emin ol.{RESET}")
+        print(f"\n{R}[X]{RESET} {t('app_start_failed')}")
+        print(f"    {D}{t('app_ensure_gg')}{RESET}")
         input("\nEnter'a bas...")
         sys.exit(1)
 

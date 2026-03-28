@@ -13,10 +13,23 @@ echo  [90m       Yapimci: OMERBABACO[0m
 echo  [96m========================================[0m
 echo.
 
-:: Venv check
-echo  [96m[1/2][0m  [97mSanal ortam kontrol ediliyor...[0m
+:: End-user path: run published EXE directly
+if exist "dist\ss-ext.exe" (
+    echo  [93m[*][0m  [97mYayinlanan EXE baslatiliyor...[0m
+    start "" "dist\ss-ext.exe" --tray
+    exit /b 0
+)
+
+if exist "ss-ext.exe" (
+    echo  [93m[*][0m  [97mYayinlanan EXE baslatiliyor...[0m
+    start "" "ss-ext.exe" --tray
+    exit /b 0
+)
+
+:: Developer fallback: Python/venv
+echo  [96m[1/2][0m  [97mEXE bulunamadi, gelistirici moduna geciliyor...[0m
 if not exist "venv\Scripts\activate.bat" (
-    echo      [91mX Sanal ortam bulunamadi![0m
+    echo      [91mX EXE de sanal ortam da bulunamadi![0m
     pause
     exit /b 1
 )
@@ -35,7 +48,7 @@ echo      [92mOK[0m - Sanal ortam aktif
 
 echo.
 echo  [93m[*][0m  [97mSS-EXT baslatiliyor...[0m
-python main.py %*
+python main.py --tray %*
 
 echo.
 echo  [92m[OK][0m  [97mSS-EXT kapandi.[0m

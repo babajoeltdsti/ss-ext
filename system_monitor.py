@@ -13,6 +13,8 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional, TYPE_CHECKING
 
+from i18n import t
+
 if TYPE_CHECKING:
     # Optional / platform-specific runtime deps - help static checkers (pyright/pylance)
     try:
@@ -71,22 +73,22 @@ class EmailMonitor:
             self._enabled = EMAIL_NOTIFICATION_ENABLED
 
             if not self._email_password:
-                print("[!] E-posta sifresi ayarlanmamis (SSEXT_EMAIL_PASSWORD)")
-                print("    E-posta bildirimleri devre disi")
+                print(f"[!] {t('email_password_missing')}")
+                print(f"    {t('email_disabled')}")
                 self._enabled = False
                 return
 
             if self._enabled:
                 self._initialized = True
-                print(f"[OK] E-posta izleme hazir: {self._email_address}")
+                print(f"[OK] {t('email_ready', address=self._email_address)}")
             else:
-                print("[!] E-posta bildirimleri devre disi")
+                print(f"[!] {t('email_disabled')}")
 
         except ImportError as e:
-            print(f"[!] E-posta ayarlari yuklenemedi: {e}")
+            print(f"[!] {t('email_settings_load_failed', error=e)}")
             self._enabled = False
         except Exception as e:
-            print(f"[!] E-posta baslatilamadi: {e}")
+            print(f"[!] {t('email_init_failed', error=e)}")
             self._enabled = False
 
     def start(self):
@@ -97,7 +99,7 @@ class EmailMonitor:
         self._running = True
         self._thread = threading.Thread(target=self._check_loop, daemon=True)
         self._thread.start()
-        print("[OK] E-posta izleme aktif")
+        print(f"[OK] {t('email_monitoring_active')}")
 
     def stop(self):
         """E-posta izleme thread'ini durdur"""
@@ -114,7 +116,7 @@ class EmailMonitor:
             try:
                 self._check_new_emails()
             except Exception as e:
-                print(f"[!] E-posta kontrol hatasi: {e}")
+                print(f"[!] {t('email_check_failed', error=e)}")
 
             # Belirtilen aralıkta bekle
             for _ in range(self._check_interval):
@@ -142,7 +144,7 @@ class EmailMonitor:
 
             mail.logout()
         except Exception as e:
-            print(f"[!] Son e-posta UID alinamadi: {e}")
+            print(f"[!] {t('email_last_uid_failed', error=e)}")
 
     def _decode_mime_header(self, header: str) -> str:
         """MIME kodlu başlığı decode et"""
@@ -213,8 +215,8 @@ class EmailMonitor:
                         # Bildirimi kuyruğa ekle
                         with self._lock:
                             self._pending_emails.append({
-                                "subject": subject or "Konu Yok",
-                                "sender": sender or "Bilinmeyen"
+                                "subject": subject or t("email_no_subject"),
+                                "sender": sender or t("email_unknown_sender")
                             })
 
                         self._last_uid = uid
@@ -222,9 +224,9 @@ class EmailMonitor:
             mail.logout()
 
         except imaplib.IMAP4.error as e:
-            print(f"[!] IMAP hatasi: {e}")
+            print(f"[!] {t('imap_error', error=e)}")
         except Exception as e:
-            print(f"[!] E-posta kontrol hatasi: {e}")
+            print(f"[!] {t('email_check_failed', error=e)}")
 
     def get_pending_email(self) -> Optional[Dict[str, str]]:
         """Bekleyen e-posta bildirimini al (varsa)"""
@@ -515,7 +517,7 @@ class NotificationMonitor:
                 app_name = self._pending_notification
                 self._pending_notification = None
                 self._last_notification_time = current_time
-                return {"app": app_name, "message": "Yeni Mesaj"}
+                return {"app": app_name, "message": t("notification_new")}
             else:
                 # Cooldown süresi dolmadı, bildirimi sil
                 self._pending_notification = None
