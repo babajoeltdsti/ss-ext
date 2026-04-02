@@ -158,7 +158,7 @@ bool UpdateChecker::ParseAssetDownload(const std::string& json, std::string& dow
 
     if (LooksLikeExeAsset(candidate_url, candidate_name)) {
       download_url = candidate_url;
-      asset_name = candidate_name.empty() ? "ss-ext-update.exe" : candidate_name;
+      asset_name = candidate_name.empty() ? "carex-ext-update.exe" : candidate_name;
       return true;
     }
 
@@ -191,7 +191,7 @@ UpdateInfo UpdateChecker::CheckLatest(const std::string& owner, const std::strin
                                       const std::string& current_version) const {
   UpdateInfo info;
 
-  const std::wstring user_agent = L"SS-EXT-Cpp/0.1";
+  const std::wstring user_agent = L"Carex-Ext/0.1";
   HINTERNET h_session = WinHttpOpen(user_agent.c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                     WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
   if (!h_session) {
@@ -271,7 +271,7 @@ bool UpdateChecker::DownloadToFile(const std::string& url, const std::string& fi
   std::wstring url_path(uc.lpszUrlPath, uc.dwUrlPathLength);
   const bool secure = (uc.nScheme == INTERNET_SCHEME_HTTPS);
 
-  HINTERNET h_session = WinHttpOpen(L"SS-EXT-Cpp/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+  HINTERNET h_session = WinHttpOpen(L"Carex-Ext/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                     WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
   if (!h_session) {
     return false;
@@ -364,7 +364,7 @@ bool UpdateChecker::DownloadToString(const std::string& url, std::string& out_te
   std::wstring url_path(uc.lpszUrlPath, uc.dwUrlPathLength);
   const bool secure = (uc.nScheme == INTERNET_SCHEME_HTTPS);
 
-  HINTERNET h_session = WinHttpOpen(L"SS-EXT-Cpp/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+  HINTERNET h_session = WinHttpOpen(L"Carex-Ext/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                     WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
   if (!h_session) {
     return false;

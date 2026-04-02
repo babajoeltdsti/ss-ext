@@ -205,7 +205,7 @@ void GameMonitor::MergeKnownGamesFromText(const std::string& text) {
       continue;
     }
 
-    if (exe.rfind(".exe") == std::string::npos) {
+    if (exe.size() < 4 || exe.substr(exe.size() - 4) != ".exe") {
       exe += ".exe";
     }
 

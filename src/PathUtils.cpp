@@ -47,8 +47,21 @@ std::string GetAppDataDirectory() {
     return {};
   }
 
-  const std::string app_dir = JoinPath(utf8, "ss-ext-cpp");
+  const std::string old_app_dir = JoinPath(utf8, "ss-ext-cpp");
+  const std::string app_dir = JoinPath(utf8, "carex-ext");
+
+  std::error_code ec;
+  const bool new_dir_exists = std::filesystem::exists(app_dir, ec);
   EnsureDirectory(app_dir);
+
+  if (!new_dir_exists && std::filesystem::exists(old_app_dir, ec)) {
+    std::filesystem::copy(old_app_dir,
+                          app_dir,
+                          std::filesystem::copy_options::recursive |
+                              std::filesystem::copy_options::overwrite_existing,
+                          ec);
+  }
+
   return app_dir;
 }
 

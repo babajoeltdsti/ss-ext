@@ -1,6 +1,11 @@
 #include <Windows.h>
 
+#include <ShObjIdl_core.h>
+
+#include <algorithm>
 #include <atomic>
+#include <cctype>
+#include <fstream>
 #include <string>
 
 #include "App.hpp"
@@ -13,6 +18,39 @@
 namespace {
 std::atomic_bool g_stop_requested{false};
 ssext::App* g_app = nullptr;
+
+std::string ResolveCredentialTarget(const std::string& app_data_dir) {
+  std::string active_profile = "default";
+  if (!app_data_dir.empty()) {
+    const std::string state_path = ssext::JoinPath(app_data_dir, "profile_state.ini");
+    std::ifstream input(state_path);
+    std::string line;
+    while (std::getline(input, line)) {
+      const std::string key = "active_profile=";
+      if (line.rfind(key, 0) == 0 && line.size() > key.size()) {
+        active_profile = line.substr(key.size());
+        break;
+      }
+    }
+  }
+
+  std::string normalized = ssext::Config::NormalizeProfileName(active_profile);
+  if (normalized.empty()) {
+    normalized = "default";
+  }
+
+  std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char ch) {
+    if (ch >= 'a' && ch <= 'z') {
+      return static_cast<char>(std::toupper(ch));
+    }
+    if (std::isalnum(ch) != 0 || ch == '_') {
+      return static_cast<char>(ch);
+    }
+    return '_';
+  });
+
+  return "CAREX_EXT_IMAP_" + normalized;
+}
 
 BOOL WINAPI ConsoleCtrlHandler(DWORD ctrl_type) {
   switch (ctrl_type) {
@@ -33,7 +71,10 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrl_type) {
 }  // namespace
 
 int RunApplication() {
+  SetCurrentProcessExplicitAppUserModelID(L"OMERBABACO.CarexExt");
+
   const std::string app_data_dir = ssext::GetAppDataDirectory();
+  const std::string credential_target = ResolveCredentialTarget(app_data_dir);
   if (!app_data_dir.empty()) {
     ssext::CrashHandler::Initialize(ssext::JoinPath(app_data_dir, "dumps"));
   }
@@ -55,7 +96,7 @@ int RunApplication() {
 
       const std::string username = __argv[2];
       const std::string password = __argv[3];
-      if (!credential_store.SaveGeneric("SSEXT_CPP_IMAP", username, password)) {
+      if (!credential_store.SaveGeneric(credential_target, username, password)) {
         ssext::Logger::Instance().Log(ssext::LogLevel::Error,
                                       "Credential kaydedilemedi.");
         return 1;
@@ -67,17 +108,37 @@ int RunApplication() {
     }
 
     if (arg1 == "--clear-email-credential") {
-      credential_store.DeleteGeneric("SSEXT_CPP_IMAP");
+      credential_store.DeleteGeneric(credential_target);
       ssext::Logger::Instance().Log(ssext::LogLevel::Info,
                                     "Email credential silindi.");
       return 0;
     }
+
+    if (arg1 == "--restart-wait" && __argc > 2) {
+      DWORD wait_pid = 0;
+      try {
+        wait_pid = static_cast<DWORD>(std::stoul(__argv[2]));
+      } catch (...) {
+        wait_pid = 0;
+      }
+
+      if (wait_pid != 0) {
+        HANDLE old_process = OpenProcess(SYNCHRONIZE, FALSE, wait_pid);
+        if (old_process != nullptr) {
+          WaitForSingleObject(old_process, 180000);
+          CloseHandle(old_process);
+        } else {
+          Sleep(1200);
+        }
+        Sleep(250);
+      }
+    }
   }
 
-  const HANDLE instance_mutex = CreateMutexA(nullptr, FALSE, "Local\\SSEXT_CPP_INSTANCE_MUTEX");
+  const HANDLE instance_mutex = CreateMutexA(nullptr, FALSE, "Local\\CAREX_EXT_INSTANCE_MUTEX");
   const bool already_running = (GetLastError() == ERROR_ALREADY_EXISTS);
 
-  HANDLE stop_event = OpenEventA(EVENT_MODIFY_STATE, FALSE, "Local\\SSEXT_CPP_STOP_EVENT");
+  HANDLE stop_event = OpenEventA(EVENT_MODIFY_STATE, FALSE, "Local\\CAREX_EXT_STOP_EVENT");
 
   if (__argc > 1) {
     const std::string arg1 = __argv[1];
@@ -106,7 +167,7 @@ int RunApplication() {
   }
 
   if (stop_event == nullptr) {
-    stop_event = CreateEventA(nullptr, TRUE, FALSE, "Local\\SSEXT_CPP_STOP_EVENT");
+    stop_event = CreateEventA(nullptr, TRUE, FALSE, "Local\\CAREX_EXT_STOP_EVENT");
   }
 
   if (!SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE)) {

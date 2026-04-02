@@ -111,11 +111,11 @@ bool NotificationMonitor::HasUnreadPattern(const std::string& title) const {
 }
 
 bool NotificationMonitor::IsTrackedApp(const std::string& title, std::string& app_name) const {
-  static const std::array<std::pair<const char*, const char*>, 8> apps = {
-      std::make_pair("whatsapp", "WhatsApp"), std::make_pair("discord", "Discord"),
-      std::make_pair("telegram", "Telegram"), std::make_pair("slack", "Slack"),
-      std::make_pair("teams", "Teams"),       std::make_pair("messenger", "Messenger"),
-      std::make_pair("signal", "Signal"),     std::make_pair("sms", "SMS")};
+  static const std::array<std::pair<const char*, const char*>, 4> apps = {
+      std::make_pair("whatsapp", "WhatsApp"),
+      std::make_pair("discord", "Discord"),
+      std::make_pair("instagram", "Instagram"),
+      std::make_pair("insta", "Instagram")};
 
   const std::string lower = ToLower(title);
   for (const auto& [needle, pretty] : apps) {

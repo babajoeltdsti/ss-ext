@@ -8,13 +8,31 @@
 #include <string>
 #include <vector>
 
+#include <chrono>
+
 #include "Logger.hpp"
 
 #pragma comment(lib, "winhttp.lib")
 
 namespace ssext {
 
+namespace {
+
+constexpr DWORD kHttpTimeoutMs = 350;
+
+}  // namespace
+
 GameSenseClient::GameSenseClient(Config config) : config_(std::move(config)) {}
+
+GameSenseClient::~GameSenseClient() {
+  std::lock_guard<std::mutex> lock(http_mutex_);
+  ResetHttpConnectionLocked();
+}
+
+void GameSenseClient::SetConfig(const Config& config) {
+  std::lock_guard<std::mutex> lock(http_mutex_);
+  config_ = config;
+}
 
 std::string GameSenseClient::ReadFile(const std::string& path) {
   std::ifstream input(path, std::ios::binary);
@@ -101,6 +119,20 @@ bool GameSenseClient::DiscoverServer() {
   }
 
   Logger::Instance().Log(LogLevel::Info, "GameSense server bulundu: " + server_address_);
+
+  {
+    std::lock_guard<std::mutex> lock(http_mutex_);
+    ResetHttpConnectionLocked();
+    consecutive_post_failures_ = 0;
+    retry_after_ = std::chrono::steady_clock::time_point{};
+    last_failure_log_at_ = std::chrono::steady_clock::time_point{};
+    event_coalesce_cache_.clear();
+    http_lock_wait_total_us_ = 0;
+    http_lock_wait_samples_ = 0;
+    http_lock_contention_samples_ = 0;
+    next_lock_metrics_log_at_ = std::chrono::steady_clock::time_point{};
+  }
+
   return true;
 }
 
@@ -134,72 +166,214 @@ std::string GameSenseClient::EscapeJson(const std::string& text) {
   return out;
 }
 
+bool GameSenseClient::EnsureHttpConnectionLocked() {
+  if (session_handle_ == nullptr) {
+    const std::wstring user_agent = L"Carex-Ext/0.2";
+    session_handle_ = WinHttpOpen(user_agent.c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                                  WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (session_handle_ == nullptr) {
+      return false;
+    }
+  }
+
+  if (connect_handle_ == nullptr) {
+    std::wstring host(server_host_.begin(), server_host_.end());
+    if (host.empty()) {
+      host = L"127.0.0.1";
+    }
+
+    connect_handle_ =
+        WinHttpConnect(session_handle_, host.c_str(), static_cast<INTERNET_PORT>(server_port_), 0);
+    if (connect_handle_ == nullptr) {
+      ResetHttpConnectionLocked();
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void GameSenseClient::ResetHttpConnectionLocked() {
+  if (connect_handle_ != nullptr) {
+    WinHttpCloseHandle(connect_handle_);
+    connect_handle_ = nullptr;
+  }
+
+  if (session_handle_ != nullptr) {
+    WinHttpCloseHandle(session_handle_);
+    session_handle_ = nullptr;
+  }
+}
+
+void GameSenseClient::TrackHttpLockWaitLocked(
+    long long wait_microseconds,
+    const std::chrono::steady_clock::time_point& now) {
+  if (wait_microseconds < 0) {
+    wait_microseconds = 0;
+  }
+
+  http_lock_wait_total_us_ += wait_microseconds;
+  ++http_lock_wait_samples_;
+  if (wait_microseconds > 900) {
+    ++http_lock_contention_samples_;
+  }
+
+  if (next_lock_metrics_log_at_ == std::chrono::steady_clock::time_point{}) {
+    next_lock_metrics_log_at_ = now + std::chrono::seconds(60);
+  }
+
+  if (now >= next_lock_metrics_log_at_ && http_lock_wait_samples_ > 0) {
+    const long long avg_wait_us = http_lock_wait_total_us_ / http_lock_wait_samples_;
+    Logger::Instance().Log(
+        LogLevel::Info,
+        "GameSense mutex telemetry: samples=" + std::to_string(http_lock_wait_samples_) +
+            ", avg_wait_us=" + std::to_string(avg_wait_us) +
+            ", contention_samples=" + std::to_string(http_lock_contention_samples_));
+
+    http_lock_wait_total_us_ = 0;
+    http_lock_wait_samples_ = 0;
+    http_lock_contention_samples_ = 0;
+    next_lock_metrics_log_at_ = now + std::chrono::seconds(60);
+  }
+}
+
 bool GameSenseClient::PostJson(const std::string& path, const std::string& body) {
   if (server_address_.empty()) {
     Logger::Instance().Log(LogLevel::Error, "Server adresi bos, once DiscoverServer cagrilmali.");
     return false;
   }
 
-  const std::wstring user_agent = L"SS-EXT-Cpp/0.1";
-  HINTERNET h_session = WinHttpOpen(user_agent.c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                                    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-  if (!h_session) {
-    Logger::Instance().Log(LogLevel::Error, "WinHttpOpen basarisiz.");
-    return false;
-  }
+  const auto now = std::chrono::steady_clock::now();
 
-  std::wstring host(server_host_.begin(), server_host_.end());
-  if (host.empty()) {
-    host = L"127.0.0.1";
-  }
-  const INTERNET_PORT port = static_cast<INTERNET_PORT>(server_port_);
-  HINTERNET h_connect = WinHttpConnect(h_session, host.c_str(), port, 0);
-  if (!h_connect) {
-    WinHttpCloseHandle(h_session);
-    Logger::Instance().Log(LogLevel::Error, "WinHttpConnect basarisiz.");
-    return false;
-  }
-
-  std::wstring wide_path(path.begin(), path.end());
-  HINTERNET h_request = WinHttpOpenRequest(
-      h_connect, L"POST", wide_path.c_str(), nullptr, WINHTTP_NO_REFERER,
-      WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-  if (!h_request) {
-    WinHttpCloseHandle(h_connect);
-    WinHttpCloseHandle(h_session);
-    Logger::Instance().Log(LogLevel::Error, "WinHttpOpenRequest basarisiz: " + path);
-    return false;
-  }
-
-  constexpr DWORD timeout_ms = 2000;
-  WinHttpSetTimeouts(h_request, timeout_ms, timeout_ms, timeout_ms, timeout_ms);
-
-  const std::wstring headers = L"Content-Type: application/json\r\n";
-  BOOL sent = WinHttpSendRequest(h_request, headers.c_str(), static_cast<DWORD>(-1),
-                                 (LPVOID)body.data(), static_cast<DWORD>(body.size()),
-                                 static_cast<DWORD>(body.size()), 0);
-
-  bool ok = false;
-  if (sent && WinHttpReceiveResponse(h_request, nullptr)) {
-    DWORD status_code = 0;
-    DWORD size = sizeof(status_code);
-    if (WinHttpQueryHeaders(h_request,
-                            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                            WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &size,
-                            WINHTTP_NO_HEADER_INDEX)) {
-      ok = status_code >= 200 && status_code < 300;
+  {
+    const auto lock_started_at = std::chrono::steady_clock::now();
+    std::unique_lock<std::mutex> lock(http_mutex_);
+    const long long wait_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                              std::chrono::steady_clock::now() - lock_started_at)
+                              .count();
+    TrackHttpLockWaitLocked(wait_us, now);
+    if (retry_after_ != std::chrono::steady_clock::time_point{} && now < retry_after_) {
+      return false;
     }
   }
 
-  WinHttpCloseHandle(h_request);
-  WinHttpCloseHandle(h_connect);
-  WinHttpCloseHandle(h_session);
+  bool ok = false;
+  for (int attempt = 0; attempt < 2 && !ok; ++attempt) {
+    const auto lock_started_at = std::chrono::steady_clock::now();
+    std::unique_lock<std::mutex> lock(http_mutex_);
+    const auto lock_now = std::chrono::steady_clock::now();
+    const long long wait_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(lock_now - lock_started_at).count();
+    TrackHttpLockWaitLocked(wait_us, lock_now);
 
-  if (!ok) {
-    Logger::Instance().Log(LogLevel::Warning, "GameSense POST basarisiz: " + path);
+    if (!EnsureHttpConnectionLocked()) {
+      break;
+    }
+
+    std::wstring wide_path(path.begin(), path.end());
+    HINTERNET h_request = WinHttpOpenRequest(
+        connect_handle_, L"POST", wide_path.c_str(), nullptr, WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+    if (h_request == nullptr) {
+      ResetHttpConnectionLocked();
+      continue;
+    }
+
+    WinHttpSetTimeouts(h_request, kHttpTimeoutMs, kHttpTimeoutMs, kHttpTimeoutMs, kHttpTimeoutMs);
+
+    const std::wstring headers = L"Content-Type: application/json\r\nConnection: keep-alive\r\n";
+    const BOOL sent = WinHttpSendRequest(h_request, headers.c_str(), static_cast<DWORD>(-1),
+                                         const_cast<char*>(body.data()),
+                                         static_cast<DWORD>(body.size()),
+                                         static_cast<DWORD>(body.size()), 0);
+
+    if (sent && WinHttpReceiveResponse(h_request, nullptr)) {
+      DWORD status_code = 0;
+      DWORD size = sizeof(status_code);
+      if (WinHttpQueryHeaders(h_request,
+                              WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                              WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &size,
+                              WINHTTP_NO_HEADER_INDEX)) {
+        ok = status_code >= 200 && status_code < 300;
+      }
+    }
+
+    WinHttpCloseHandle(h_request);
+
+    if (!ok) {
+      ResetHttpConnectionLocked();
+    }
   }
 
-  return ok;
+  {
+    const auto lock_started_at = std::chrono::steady_clock::now();
+    std::unique_lock<std::mutex> lock(http_mutex_);
+    const auto lock_now = std::chrono::steady_clock::now();
+    const long long wait_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(lock_now - lock_started_at).count();
+    TrackHttpLockWaitLocked(wait_us, lock_now);
+
+    if (ok) {
+      if (consecutive_post_failures_ > 0) {
+        Logger::Instance().Log(LogLevel::Info, "GameSense baglantisi normale dondu.");
+      }
+      consecutive_post_failures_ = 0;
+      retry_after_ = std::chrono::steady_clock::time_point{};
+      return true;
+    }
+
+    ++consecutive_post_failures_;
+    if (consecutive_post_failures_ >= 4) {
+      retry_after_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(1200);
+    }
+
+    const auto log_now = std::chrono::steady_clock::now();
+    if (last_failure_log_at_ == std::chrono::steady_clock::time_point{} ||
+        std::chrono::duration_cast<std::chrono::seconds>(log_now - last_failure_log_at_).count() >=
+            15) {
+      last_failure_log_at_ = log_now;
+      Logger::Instance().Log(LogLevel::Warning,
+                             "GameSense POST gecikiyor, tekrar denenecek: " + path);
+    }
+  }
+
+  return false;
+}
+
+bool GameSenseClient::PostGameEvent(const std::string& event_name, const std::string& body) {
+  const auto now = std::chrono::steady_clock::now();
+  {
+    const auto lock_started_at = std::chrono::steady_clock::now();
+    std::unique_lock<std::mutex> lock(http_mutex_);
+    const long long wait_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                              std::chrono::steady_clock::now() - lock_started_at)
+                              .count();
+    TrackHttpLockWaitLocked(wait_us, now);
+
+    auto& entry = event_coalesce_cache_[event_name];
+    if (!entry.last_body.empty() && entry.last_body == body &&
+        entry.last_sent_at != std::chrono::steady_clock::time_point{} &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - entry.last_sent_at).count() <=
+            120) {
+      return true;
+    }
+  }
+
+  const bool posted = PostJson("/game_event", body);
+  if (!posted) {
+    return false;
+  }
+
+  const auto lock_started_at = std::chrono::steady_clock::now();
+  std::unique_lock<std::mutex> lock(http_mutex_);
+  const long long wait_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                            std::chrono::steady_clock::now() - lock_started_at)
+                            .count();
+  TrackHttpLockWaitLocked(wait_us, std::chrono::steady_clock::now());
+  auto& entry = event_coalesce_cache_[event_name];
+  entry.last_body = body;
+  entry.last_sent_at = now;
+  return true;
 }
 
 bool GameSenseClient::RegisterGame() {
@@ -473,7 +647,7 @@ bool GameSenseClient::SendClockEvent(const std::string& time_text, const std::st
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("CLOCK", body);
 }
 
 bool GameSenseClient::SendSpotifyEvent(const std::string& title, const std::string& artist,
@@ -493,7 +667,7 @@ bool GameSenseClient::SendSpotifyEvent(const std::string& title, const std::stri
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("SPOTIFY", body);
 }
 
 bool GameSenseClient::SendVolumeEvent(const std::string& title, const std::string& level) {
@@ -511,7 +685,7 @@ bool GameSenseClient::SendVolumeEvent(const std::string& title, const std::strin
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("VOLUME", body);
 }
 
 bool GameSenseClient::SendNotificationEvent(const std::string& app, const std::string& message) {
@@ -529,7 +703,7 @@ bool GameSenseClient::SendNotificationEvent(const std::string& app, const std::s
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("NOTIFICATION", body);
 }
 
 bool GameSenseClient::SendGameModeEvent(const std::string& game, const std::string& info) {
@@ -547,7 +721,7 @@ bool GameSenseClient::SendGameModeEvent(const std::string& game, const std::stri
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("GAME_MODE", body);
 }
 
 bool GameSenseClient::SendUpdateEvent(const std::string& title, const std::string& status) {
@@ -565,7 +739,7 @@ bool GameSenseClient::SendUpdateEvent(const std::string& title, const std::strin
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("UPDATE", body);
 }
 
 bool GameSenseClient::SendEmailEvent(const std::string& subject, const std::string& sender) {
@@ -583,7 +757,7 @@ bool GameSenseClient::SendEmailEvent(const std::string& subject, const std::stri
       "}"
       "}";
 
-  return PostJson("/game_event", body);
+  return PostGameEvent("EMAIL_NOTIFICATION", body);
 }
 
 }  // namespace ssext

@@ -132,41 +132,6 @@ std::vector<std::string> SplitUtf8Codepoints(const std::string& text) {
   return out;
 }
 
-void SendUpdateSubtitleWithMarquee(GameSenseClient& client,
-                                   const std::string& title,
-                                   const std::string& subtitle) {
-  constexpr std::size_t kVisibleGlyphCount = 16;
-  constexpr auto kFrameDelay = std::chrono::milliseconds(120);
-
-  const std::vector<std::string> glyphs = SplitUtf8Codepoints(subtitle);
-  if (glyphs.size() <= kVisibleGlyphCount) {
-    client.SendUpdateEvent(title, subtitle);
-    return;
-  }
-
-  std::vector<std::string> track = glyphs;
-  track.emplace_back(" ");
-  track.emplace_back(" ");
-  track.emplace_back(" ");
-  track.insert(track.end(), glyphs.begin(), glyphs.end());
-
-  const std::size_t cycle = glyphs.size() + 3;
-  const std::size_t frame_count = (std::min<std::size_t>)(cycle, 20);
-
-  for (std::size_t frame = 0; frame < frame_count; ++frame) {
-    const std::size_t offset = (frame * cycle) / frame_count;
-
-    std::string window;
-    window.reserve(kVisibleGlyphCount * 2);
-    for (std::size_t i = 0; i < kVisibleGlyphCount; ++i) {
-      window += track[offset + i];
-    }
-
-    client.SendUpdateEvent(title, window);
-    std::this_thread::sleep_for(kFrameDelay);
-  }
-}
-
 std::string ReadActiveProfileName(const std::string& state_path) {
   std::ifstream in(state_path);
   if (!in.is_open()) {
@@ -264,6 +229,42 @@ void NormalizeProfileList(std::vector<std::string>& profile_names,
 
   std::sort(profile_names.begin(), profile_names.end());
   profile_names.erase(std::unique(profile_names.begin(), profile_names.end()), profile_names.end());
+}
+
+void SendUpdateSubtitleWithMarquee(GameSenseClient& client,
+                                   const std::string& title,
+                                   const std::string& subtitle) {
+  constexpr std::size_t kMarqueeWindowChars = 18;
+  constexpr int kMarqueeStepDelayMs = 120;
+
+  if (subtitle.empty()) {
+    client.SendUpdateEvent(title, subtitle);
+    return;
+  }
+
+  const std::vector<std::string> glyphs = SplitUtf8Codepoints(subtitle);
+  if (glyphs.size() <= kMarqueeWindowChars) {
+    client.SendUpdateEvent(title, subtitle);
+    return;
+  }
+
+  std::vector<std::string> padded = glyphs;
+  padded.insert(padded.end(), kMarqueeWindowChars, " ");
+
+  for (std::size_t offset = 0; offset <= glyphs.size(); ++offset) {
+    std::string frame;
+    frame.reserve(kMarqueeWindowChars * 3);
+
+    for (std::size_t i = 0; i < kMarqueeWindowChars; ++i) {
+      const std::size_t idx = offset + i;
+      if (idx < padded.size()) {
+        frame += padded[idx];
+      }
+    }
+
+    client.SendUpdateEvent(title, frame);
+    std::this_thread::sleep_for(std::chrono::milliseconds(kMarqueeStepDelayMs));
+  }
 }
 
 }  // namespace
