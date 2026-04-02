@@ -11,6 +11,7 @@ if(MSVC)
 endif()
 
 add_executable(ss-ext WIN32
+  resources/carex-ext.rc
   src/main.cpp
   src/App.cpp
   src/Config.cpp

@@ -33,3 +33,22 @@ Name: "desktopicon"; Description: "Masaustu kisayolu olustur"; GroupDescription:
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "SS-EXT baslat"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function ValidateInstalledBinaries(): Boolean;
+begin
+	Result := FileExists(ExpandConstant('{app}\{#AppExeName}')) and
+						FileExists(ExpandConstant('{app}\{#UpdaterExeName}'));
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+	if CurStep = ssPostInstall then
+	begin
+		if not ValidateInstalledBinaries() then
+		begin
+			MsgBox('Kurulum dogrulamasi basarisiz: gerekli dosyalar eksik.', mbError, MB_OK);
+			RaiseException('Carex-Ext installer validation failed.');
+		end;
+	end;
+end;

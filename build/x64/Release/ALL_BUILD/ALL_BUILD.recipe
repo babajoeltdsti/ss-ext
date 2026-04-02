@@ -5,10 +5,10 @@
       <FullPath>C:\ss-ext\cpp\build\x64\Release\ZERO_CHECK</FullPath>
     </ProjectOutput>
     <ProjectOutput>
-      <FullPath>C:\ss-ext\cpp\build\Release\ss-ext.exe</FullPath>
+      <FullPath>C:\ss-ext\cpp\build\Release\Carex-Ext.exe</FullPath>
     </ProjectOutput>
     <ProjectOutput>
-      <FullPath>C:\ss-ext\cpp\build\x64\Release\ALL_BUILD</FullPath>
+      <FullPath>C:\ss-ext\publish-target\build\x64\Release\ALL_BUILD</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />
