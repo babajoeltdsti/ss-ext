@@ -132,6 +132,41 @@ std::vector<std::string> SplitUtf8Codepoints(const std::string& text) {
   return out;
 }
 
+void SendUpdateSubtitleWithMarquee(GameSenseClient& client,
+                                   const std::string& title,
+                                   const std::string& subtitle) {
+  constexpr std::size_t kVisibleGlyphCount = 16;
+  constexpr auto kFrameDelay = std::chrono::milliseconds(120);
+
+  const std::vector<std::string> glyphs = SplitUtf8Codepoints(subtitle);
+  if (glyphs.size() <= kVisibleGlyphCount) {
+    client.SendUpdateEvent(title, subtitle);
+    return;
+  }
+
+  std::vector<std::string> track = glyphs;
+  track.emplace_back(" ");
+  track.emplace_back(" ");
+  track.emplace_back(" ");
+  track.insert(track.end(), glyphs.begin(), glyphs.end());
+
+  const std::size_t cycle = glyphs.size() + 3;
+  const std::size_t frame_count = (std::min<std::size_t>)(cycle, 20);
+
+  for (std::size_t frame = 0; frame < frame_count; ++frame) {
+    const std::size_t offset = (frame * cycle) / frame_count;
+
+    std::string window;
+    window.reserve(kVisibleGlyphCount * 2);
+    for (std::size_t i = 0; i < kVisibleGlyphCount; ++i) {
+      window += track[offset + i];
+    }
+
+    client.SendUpdateEvent(title, window);
+    std::this_thread::sleep_for(kFrameDelay);
+  }
+}
+
 std::string ReadActiveProfileName(const std::string& state_path) {
   std::ifstream in(state_path);
   if (!in.is_open()) {
@@ -1472,8 +1507,10 @@ TrayActionStatus App::CheckForUpdatesManually() {
   }
 
   if (!info.has_update) {
-    client_.SendUpdateEvent(i18n_.Text("update_title"), i18n_.Text("update_latest"));
-    status.message = i18n_.Text("update_latest");
+    const std::string title = i18n_.Text("update_title");
+    const std::string latest_text = i18n_.Text("update_latest");
+    SendUpdateSubtitleWithMarquee(client_, title, latest_text);
+    status.message = latest_text;
     if (status.message.empty()) {
       status.message = "You are up to date";
     }
@@ -1522,7 +1559,7 @@ void App::CheckUpdatesOnStartup() {
       Logger::Instance().Log(LogLevel::Warning, "Guncelleme indirildi ancak self-update baslatilamadi.");
     }
   } else {
-    client_.SendUpdateEvent(i18n_.Text("update_title"), i18n_.Text("update_latest"));
+    SendUpdateSubtitleWithMarquee(client_, i18n_.Text("update_title"), i18n_.Text("update_latest"));
   }
 }
 
