@@ -1,5 +1,10 @@
 # Carex-Ext
 
+## Donate
+If this project helps you, you can support development here:
+
+`https://buymeacoffee.com/valentinoo`
+
 Carex-Ext is a Windows tray companion for SteelSeries GameSense OLED devices.
 It sends live overlays for clock, media, notifications, updates, volume, game mode, and email.
 
@@ -87,7 +92,3 @@ cmake --build build --config Release
 - Profiles: `%APPDATA%\carex-ext\profiles`
 - Logs: `%APPDATA%\carex-ext\app.log`
 
-## Support
-If this project helps you, you can support development here:
-
-`https://buymeacoffee.com/valentinoo`
