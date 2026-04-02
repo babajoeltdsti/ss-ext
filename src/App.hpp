@@ -7,6 +7,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "Config.hpp"
 #include "GameSenseClient.hpp"
@@ -49,13 +50,44 @@ class App {
                                  const std::chrono::steady_clock::time_point& now);
   bool SendGameMode();
   void ApplyMediaSourceToggles();
+  bool IsNotificationSourceEnabled(const std::string& app_name) const;
   void CheckUpdatesOnStartup();
   void CheckUpdatesPeriodically();
   void CheckEmailCredentialStatus();
+  TrayActionStatus CheckForUpdatesManually();
+  std::string SyncEmailCredential(const std::string& username,
+                                  const std::string& password);
   bool TryApplyUpdate(const UpdateInfo& info);
   void QueueLanguageOverlay(const std::string& title, const std::string& subtitle);
+  bool InitializeProfiles();
+  bool CreateProfile(const std::string& profile_name);
+  bool CopyProfile(const std::string& from_profile_name,
+                   const std::string& to_profile_name);
+  bool RenameProfile(const std::string& from_profile_name,
+                     const std::string& to_profile_name);
+  bool DeleteProfile(const std::string& profile_name);
+  bool ExportProfile(const std::string& profile_name,
+                     const std::string& destination_path);
+  bool ImportProfile(const std::string& source_path,
+                     const std::string& preferred_profile_name);
+  bool SetProfileLocked(const std::string& profile_name, bool locked);
+  bool IsProfileLocked(const std::string& profile_name) const;
+  std::string BuildProfileCredentialTarget(const std::string& profile_name) const;
+  bool SwitchProfile(const std::string& profile_name);
+  void SaveActiveProfileConfig();
+  bool SaveConfigWithRollback(const std::string& settings_path, const Config& cfg) const;
+  bool TestSmtpConnectivity(const TrayEmailSettings& email_settings,
+                            std::string& error_message) const;
+  TrayProfileSelectionResult BuildTrayProfileSelectionResult(
+      bool success,
+      const std::string& error_message = {},
+      const std::string& info_message = {}) const;
 
   std::string app_data_dir_;
+  std::string profile_state_path_;
+  std::string active_profile_name_ = "default";
+  std::string active_profile_settings_path_;
+  std::vector<std::string> profile_names_;
   HANDLE stop_event_ = nullptr;
   Config config_;
   GameSenseClient client_;
@@ -83,6 +115,7 @@ class App {
   bool language_overlay_pending_ = false;
   std::string language_overlay_title_;
   std::string language_overlay_subtitle_;
+  std::atomic<bool> restart_requested_{false};
   std::atomic<bool> running_;
 };
 

@@ -466,6 +466,132 @@ std::string ExtractHeaderValue(const std::vector<std::string>& lines, const std:
 
 EmailMonitor::EmailMonitor(const Config& config) : config_(config) {}
 
+bool EmailMonitor::TestSmtpConnection(const std::string& server,
+                                      int port,
+                                      bool use_ssl,
+                                      std::string& error_message) {
+  error_message.clear();
+
+  if (server.empty()) {
+    error_message = "SMTP sunucu bos.";
+    return false;
+  }
+
+  if (port <= 0 || port > 65535) {
+    error_message = "SMTP port gecersiz.";
+    return false;
+  }
+
+  auto read_smtp_response = [&](auto&& read_line_fn, const std::string& expected_prefix) {
+    std::string line;
+    while (read_line_fn(line)) {
+      const std::string trimmed = Trim(line);
+      if (trimmed.size() < 4) {
+        continue;
+      }
+
+      if (trimmed.rfind(expected_prefix, 0) != 0) {
+        error_message = "SMTP cevap beklenenden farkli: " + trimmed;
+        return false;
+      }
+
+      if (trimmed[3] == ' ') {
+        return true;
+      }
+    }
+
+    error_message = "SMTP cevap okunamadi.";
+    return false;
+  };
+
+  if (use_ssl) {
+    TlsSocket tls;
+    if (!tls.Connect(server, port)) {
+      error_message = "SMTP SSL baglantisi kurulamadi.";
+      return false;
+    }
+
+    if (!read_smtp_response([&](std::string& line) { return tls.ReadLine(line); }, "220")) {
+      return false;
+    }
+
+    if (!tls.SendLine("EHLO carex-ext.local\r\n")) {
+      error_message = "SMTP EHLO komutu gonderilemedi.";
+      return false;
+    }
+
+    if (!read_smtp_response([&](std::string& line) { return tls.ReadLine(line); }, "250")) {
+      return false;
+    }
+
+    tls.SendLine("QUIT\r\n");
+    return true;
+  }
+
+  WSADATA wsa;
+  if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+    error_message = "Winsock baslatilamadi.";
+    return false;
+  }
+
+  addrinfo hints{};
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  addrinfo* result = nullptr;
+  const std::string port_text = std::to_string(port);
+  if (getaddrinfo(server.c_str(), port_text.c_str(), &hints, &result) != 0 || result == nullptr) {
+    WSACleanup();
+    error_message = "SMTP DNS cozumleme basarisiz.";
+    return false;
+  }
+
+  SOCKET sock = INVALID_SOCKET;
+  for (addrinfo* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
+    sock = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+    if (sock == INVALID_SOCKET) {
+      continue;
+    }
+
+    if (connect(sock, ptr->ai_addr, static_cast<int>(ptr->ai_addrlen)) == 0) {
+      break;
+    }
+
+    closesocket(sock);
+    sock = INVALID_SOCKET;
+  }
+
+  freeaddrinfo(result);
+
+  if (sock == INVALID_SOCKET) {
+    WSACleanup();
+    error_message = "SMTP soket baglantisi kurulamadi.";
+    return false;
+  }
+
+  const bool welcome_ok = read_smtp_response(
+      [&](std::string& line) { return ReadLine(sock, line); }, "220");
+  if (!welcome_ok) {
+    closesocket(sock);
+    WSACleanup();
+    return false;
+  }
+
+  if (!SendAll(sock, "EHLO carex-ext.local\r\n")) {
+    closesocket(sock);
+    WSACleanup();
+    error_message = "SMTP EHLO komutu gonderilemedi.";
+    return false;
+  }
+
+  const bool ehlo_ok = read_smtp_response(
+      [&](std::string& line) { return ReadLine(sock, line); }, "250");
+  SendAll(sock, "QUIT\r\n");
+  closesocket(sock);
+  WSACleanup();
+  return ehlo_ok;
+}
+
 void EmailMonitor::UpdateConfig(const Config& config) {
   config_ = config;
   next_poll_ = std::chrono::steady_clock::now();
@@ -536,7 +662,7 @@ EmailItem EmailMonitor::PollImapPlain() {
     return item;
   }
 
-    if (!SendAll(sock, "a2 SELECT INBOX\r\n") ||
+  if (!SendAll(sock, "a2 SELECT INBOX\r\n") ||
       !ReadUntilTaggedGeneric([&](std::string& l) { return ReadLine(sock, l); }, "a2", lines) ||
       !TaggedOk(lines, "a2")) {
     closesocket(sock);
@@ -544,7 +670,7 @@ EmailItem EmailMonitor::PollImapPlain() {
     return item;
   }
 
-    if (!SendAll(sock, "a3 SEARCH UNSEEN\r\n") ||
+  if (!SendAll(sock, "a3 UID SEARCH UNSEEN\r\n") ||
       !ReadUntilTaggedGeneric([&](std::string& l) { return ReadLine(sock, l); }, "a3", lines) ||
       !TaggedOk(lines, "a3")) {
     closesocket(sock);
@@ -552,10 +678,11 @@ EmailItem EmailMonitor::PollImapPlain() {
     return item;
   }
 
-  const std::uint64_t latest_id = ParseLatestSearchId(lines);
-  if (latest_id > 0 && latest_id > last_seen_id_) {
+  const std::uint64_t latest_uid = ParseLatestSearchId(lines);
+  if (latest_uid > 0 && latest_uid > last_seen_uid_) {
     const std::string fetch_cmd =
-        "a4 FETCH " + std::to_string(latest_id) + " BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)]\r\n";
+        "a4 UID FETCH " + std::to_string(latest_uid) +
+        " BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)]\r\n";
     if (SendAll(sock, fetch_cmd) &&
       ReadUntilTaggedGeneric([&](std::string& l) { return ReadLine(sock, l); }, "a4", lines) &&
       TaggedOk(lines, "a4")) {
@@ -569,7 +696,7 @@ EmailItem EmailMonitor::PollImapPlain() {
         item.sender = "Bilinmeyen";
       }
     }
-    last_seen_id_ = latest_id;
+    last_seen_uid_ = latest_uid;
   }
 
   SendAll(sock, "a9 LOGOUT\r\n");
@@ -608,16 +735,17 @@ EmailItem EmailMonitor::PollImapSsl() {
     return item;
   }
 
-  if (!tls.SendLine("a3 SEARCH UNSEEN\r\n") ||
+  if (!tls.SendLine("a3 UID SEARCH UNSEEN\r\n") ||
       !ReadUntilTaggedGeneric([&](std::string& l) { return tls.ReadLine(l); }, "a3", lines) ||
       !TaggedOk(lines, "a3")) {
     return item;
   }
 
-  const std::uint64_t latest_id = ParseLatestSearchId(lines);
-  if (latest_id > 0 && latest_id > last_seen_id_) {
+  const std::uint64_t latest_uid = ParseLatestSearchId(lines);
+  if (latest_uid > 0 && latest_uid > last_seen_uid_) {
     const std::string fetch_cmd =
-        "a4 FETCH " + std::to_string(latest_id) + " BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)]\r\n";
+        "a4 UID FETCH " + std::to_string(latest_uid) +
+        " BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)]\r\n";
     if (tls.SendLine(fetch_cmd) &&
         ReadUntilTaggedGeneric([&](std::string& l) { return tls.ReadLine(l); }, "a4", lines) &&
         TaggedOk(lines, "a4")) {
@@ -631,7 +759,7 @@ EmailItem EmailMonitor::PollImapSsl() {
         item.sender = "Bilinmeyen";
       }
     }
-    last_seen_id_ = latest_id;
+    last_seen_uid_ = latest_uid;
   }
 
   tls.SendLine("a9 LOGOUT\r\n");
@@ -660,10 +788,26 @@ EmailItem EmailMonitor::Poll() {
     if (item.has_value) {
       return item;
     }
+
+    // Common server setup: port 143 is plain IMAP without implicit TLS.
+    if (config_.email_imap_port == 143) {
+      item = PollImapPlain();
+      if (item.has_value) {
+        return item;
+      }
+    }
   } else {
     item = PollImapPlain();
     if (item.has_value) {
       return item;
+    }
+
+    // Common server setup: port 993 expects implicit TLS.
+    if (config_.email_imap_port == 993) {
+      item = PollImapSsl();
+      if (item.has_value) {
+        return item;
+      }
     }
   }
 
