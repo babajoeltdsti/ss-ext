@@ -49,7 +49,7 @@ void ApplyLockedMetadata(Config& cfg) {
 	cfg.app_id = "SSEXT";
 	cfg.app_name = "Carex-Ext";
 	cfg.developer = "OMERBABACO";
-	cfg.app_version = "1.0";
+	cfg.app_version = "1.1";
 	cfg.update_repo_owner = "babajoeltdsti";
 	cfg.update_repo_name = "ss-ext";
 }

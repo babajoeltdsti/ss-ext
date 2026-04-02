@@ -1621,44 +1621,52 @@ bool App::TryApplyUpdate(const UpdateInfo& info) {
       JoinPath(update_dir, "carex-ext-update-" + info.latest_version + ".exe");
   client_.SendUpdateEvent(i18n_.Text("update_title"), i18n_.Text("update_downloading"));
   if (!update_checker_.DownloadToFile(info.download_url, downloaded_path)) {
+    Logger::Instance().Log(LogLevel::Warning,
+                           "Update dosyasi indirilemedi: " + info.download_url);
     return false;
   }
 
   if (config_.auto_update_require_checksum) {
     std::string checksum_text;
-    if (info.checksum_url.empty() ||
-        !update_checker_.DownloadToString(info.checksum_url, checksum_text)) {
-      Logger::Instance().Log(LogLevel::Warning,
-                             "Checksum dosyasi alinamadi, update iptal edildi.");
-      return false;
-    }
+    if (!info.checksum_url.empty() &&
+        update_checker_.DownloadToString(info.checksum_url, checksum_text)) {
+      std::string expected_hash;
+      if (!SSFileHash::ParseSha256Text(checksum_text, expected_hash)) {
+        Logger::Instance().Log(LogLevel::Warning,
+                               "Checksum dosyasi parse edilemedi, update iptal edildi.");
+        return false;
+      }
 
-    std::string expected_hash;
-    if (!SSFileHash::ParseSha256Text(checksum_text, expected_hash)) {
-      Logger::Instance().Log(LogLevel::Warning,
-                             "Checksum dosyasi parse edilemedi, update iptal edildi.");
-      return false;
-    }
+      std::string actual_hash;
+      if (!SSFileHash::Sha256Hex(downloaded_path, actual_hash)) {
+        Logger::Instance().Log(LogLevel::Warning,
+                               "Indirilen dosya hash hesaplanamadi, update iptal edildi.");
+        return false;
+      }
 
-    std::string actual_hash;
-    if (!SSFileHash::Sha256Hex(downloaded_path, actual_hash)) {
+      if (actual_hash != expected_hash) {
+        Logger::Instance().Log(LogLevel::Error,
+                               "Update hash dogrulamasi basarisiz, update iptal edildi.");
+        return false;
+      }
+    } else {
       Logger::Instance().Log(LogLevel::Warning,
-                             "Indirilen dosya hash hesaplanamadi, update iptal edildi.");
-      return false;
-    }
-
-    if (actual_hash != expected_hash) {
-      Logger::Instance().Log(LogLevel::Error,
-                             "Update hash dogrulamasi basarisiz, update iptal edildi.");
-      return false;
+                             "Checksum dosyasi bulunamadi, dogrulama atlanarak update devam ediyor.");
     }
   }
 
   client_.SendUpdateEvent(i18n_.Text("update_title"), i18n_.Text("update_installing"));
-  return ProcessLauncher::ScheduleReplaceAndRestartAfterExit(
+  const bool scheduled = ProcessLauncher::ScheduleReplaceAndRestartAfterExit(
       downloaded_path,
       exe_path,
       GetCurrentProcessId());
+  if (!scheduled) {
+    Logger::Instance().Log(LogLevel::Warning,
+                           "Self-update script zamanlanamadi. Kaynak: " + downloaded_path +
+                               " Hedef: " + exe_path);
+  }
+
+  return scheduled;
 }
 
 void App::SendClock() {
