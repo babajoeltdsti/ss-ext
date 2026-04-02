@@ -36,7 +36,29 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item _build/Release/ss-ext.exe dist/Carex-Ext.exe -Force
+
+          $candidates = @(
+            "_build/Release/ss-ext.exe",
+            "_build/Release/Carex-Ext.exe",
+            "_build/src/Release/ss-ext.exe",
+            "_build/src/Release/Carex-Ext.exe"
+          )
+
+          $source = $null
+          foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+              $source = $candidate
+              break
+            }
+          }
+
+          if (-not $source) {
+            Write-Host "No release exe in known locations. Available exe files under _build:"
+            Get-ChildItem -Path _build -Recurse -Filter *.exe | ForEach-Object { $_.FullName }
+            throw "Release .exe not found. Check CMake target output path/name."
+          }
+
+          Copy-Item $source dist/Carex-Ext.exe -Force
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

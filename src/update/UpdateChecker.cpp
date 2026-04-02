@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -68,6 +69,20 @@ std::vector<int> SplitVersion(const std::string& version) {
     }
   }
   return parts;
+}
+
+std::string ToLowerAscii(std::string value) {
+  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+  return value;
+}
+
+bool LooksLikeExeAsset(const std::string& url, const std::string& name) {
+  const std::string lowered_url = ToLowerAscii(url);
+  const std::string lowered_name = ToLowerAscii(name);
+  return lowered_url.find(".exe") != std::string::npos ||
+         lowered_name.find(".exe") != std::string::npos;
 }
 
 }  // namespace
@@ -141,21 +156,16 @@ bool UpdateChecker::ParseAssetDownload(const std::string& json, std::string& dow
       }
     }
 
-    if (candidate_url.find(".exe") != std::string::npos) {
+    if (LooksLikeExeAsset(candidate_url, candidate_name)) {
       download_url = candidate_url;
       asset_name = candidate_name.empty() ? "ss-ext-update.exe" : candidate_name;
       return true;
     }
 
-    if (download_url.empty()) {
-      download_url = candidate_url;
-      asset_name = candidate_name.empty() ? "ss-ext-update.bin" : candidate_name;
-    }
-
     pos = key_pos + url_key.size();
   }
 
-  return !download_url.empty();
+  return false;
 }
 
 bool UpdateChecker::IsVersionNewer(const std::string& latest, const std::string& current) {

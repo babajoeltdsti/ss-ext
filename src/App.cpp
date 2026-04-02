@@ -1517,6 +1517,18 @@ TrayActionStatus App::CheckForUpdatesManually() {
     return status;
   }
 
+  if (info.download_url.empty()) {
+    status.success = false;
+    status.message = i18n_.Text("update_asset_missing");
+    if (status.message.empty()) {
+      status.message = "No .exe asset found in this release.";
+    }
+    Logger::Instance().Log(LogLevel::Warning,
+                           "Yeni surum bulundu ancak release .exe asset icermiyor: " +
+                               info.latest_version);
+    return status;
+  }
+
   client_.SendUpdateEvent(i18n_.Text("update_title"), i18n_.Text("update_new") + info.latest_version);
 
   if (!TryApplyUpdate(info)) {
@@ -1585,7 +1597,15 @@ void App::CheckUpdatesPeriodically() {
 }
 
 bool App::TryApplyUpdate(const UpdateInfo& info) {
-  if (app_data_dir_.empty() || info.download_url.empty()) {
+  if (app_data_dir_.empty()) {
+    Logger::Instance().Log(LogLevel::Warning,
+                           "Self-update baslatilamadi: app data dizini bos.");
+    return false;
+  }
+
+  if (info.download_url.empty()) {
+    Logger::Instance().Log(LogLevel::Warning,
+                           "Self-update baslatilamadi: release .exe asset URL bos.");
     return false;
   }
 
