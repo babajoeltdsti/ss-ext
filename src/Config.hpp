@@ -10,7 +10,7 @@ struct Config {
   std::string app_name = "Carex-Ext";
   std::string language = "tr";
   std::string developer = "OMERBABACO";
-  std::string app_version = "1.1";
+  std::string app_version = "1.0";
   std::string update_repo_owner = "babajoeltdsti";
   std::string update_repo_name = "ss-ext";
   bool auto_update_check = false;
