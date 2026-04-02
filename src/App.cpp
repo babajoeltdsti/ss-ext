@@ -1546,7 +1546,10 @@ TrayActionStatus App::CheckForUpdatesManually() {
     status.message = "Installing update. Restarting app...";
   }
 
+  Logger::Instance().Log(LogLevel::Info,
+                         "Manuel self-update baslatildi, uygulama kapatiliyor.");
   RequestStop();
+  std::exit(0);
   return status;
 }
 
